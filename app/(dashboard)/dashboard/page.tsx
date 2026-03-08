@@ -63,7 +63,7 @@ export default function Page() {
   // If the user's role is "admin", show a completely different dashboard.
   // session.user.role comes from the additionalFields we added to auth.ts
   // and the role column we added to the database.
-  if (session.user.role === "admin") {
+  if ((session.user as any).role === "admin") {
     return <AdminDashboard session={session} />
   }
 
