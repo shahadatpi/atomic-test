@@ -1,0 +1,5 @@
+1. Database setup done but row level security disabled.
+2. Dashboard is not interactive.
+2. Deployed successfully.
+3. Basic Bootstrapping done.
+4. Tikz figure and latex rendering done.
