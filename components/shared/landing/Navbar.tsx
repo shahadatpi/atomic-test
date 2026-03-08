@@ -127,7 +127,7 @@ function UserDropdown({ name, email, onClose, onSignOut }: {
       <div className="p-2 space-y-0.5">
         {[
           { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-          { href: "/profile",   label: "Profile",   icon: User            },
+          { href: "/settings",   label: "Profile",   icon: User            },
           { href: "/settings",  label: "Settings",  icon: Settings        },
         ].map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href} onClick={onClose}>
