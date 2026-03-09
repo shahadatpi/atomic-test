@@ -415,25 +415,53 @@ export default function ProblemEditor() {
               </Field>
             </div>
 
-            <Field label="Tags" hint="comma separated">
-              <div className="relative">
-                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
-                <input
-                    value={form.tags}
-                    onChange={e => set("tags", e.target.value)}
-                    placeholder="calculus, differentiation, chain-rule"
-                    className="w-full bg-zinc-900 border border-zinc-800 focus:border-emerald-500/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
-                />
-              </div>
-              {form.tags && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+            <Field label="Tags">
+              {/* Standard tags — clickable toggles */}
+              <div className="space-y-3">
+                <p className="text-xs text-zinc-600">Exam Standard (select all that apply)</p>
+                <div className="flex flex-wrap gap-2">
+                  {(["Board", "DU", "BUET", "CKRUET", "SUST", "Medical"] as const).map(std => {
+                    const active = form.tags.split(",").map(t => t.trim()).includes(std)
+                    const toggle = () => {
+                      const current = form.tags.split(",").map(t => t.trim()).filter(Boolean)
+                      const updated = active ? current.filter(t => t !== std) : [...current, std]
+                      set("tags", updated.join(", "))
+                    }
+                    return (
+                      <button key={std} type="button" onClick={toggle}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          active
+                            ? "bg-violet-400/10 border-violet-400 text-violet-300"
+                            : "bg-zinc-900 border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+                        }`}>
+                        {active ? "✓ " : ""}{std}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Free-form extra tags */}
+                <div className="relative">
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+                  <input
+                      value={form.tags}
+                      onChange={e => set("tags", e.target.value)}
+                      placeholder="Board, BUET, calculus, chain-rule…"
+                      className="w-full bg-zinc-900 border border-zinc-800 focus:border-emerald-500/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
+                  />
+                </div>
+                {form.tags && (
+                  <div className="flex flex-wrap gap-1.5">
                     {form.tags.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
-                        <span key={tag} className="text-xs bg-zinc-800 border border-zinc-700 text-zinc-400 px-2.5 py-1 rounded-full">
-                    {tag}
-                  </span>
+                      <span key={tag} className={`text-xs px-2.5 py-0.5 rounded-full border font-mono ${
+                        ["Board","DU","BUET","CKRUET","SUST","Medical"].includes(tag)
+                          ? "bg-violet-400/10 border-violet-400/30 text-violet-300"
+                          : "bg-zinc-800 border-zinc-700 text-zinc-400"
+                      }`}>{tag}</span>
                     ))}
                   </div>
-              )}
+                )}
+              </div>
             </Field>
           </div>
 

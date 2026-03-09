@@ -14,25 +14,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No TikZ code provided" }, { status: 400 });
   }
 
-  let tikz = code;
+  let latexDoc: string;
 
-  // Strip full document wrapper if present
-  if (tikz.includes("\\begin{document}")) {
-    const start = tikz.indexOf("\\begin{document}") + "\\begin{document}".length;
-    const end   = tikz.lastIndexOf("\\end{document}");
-    tikz = end > start ? tikz.slice(start, end).trim() : tikz.slice(start).trim();
-  }
+  // If it's a full standalone document, send it as-is so custom preamble is preserved
+  // (colors, tikzstyles, packages, contour, etc.)
+  if (code.trimStart().startsWith("\\documentclass")) {
+    // Only fix: replace deprecated `snakes` library with modern equivalent
+    latexDoc = code
+      .replace(/\\usetikzlibrary\{([^}]*)\}/g, (match, libs: string) => {
+        const fixed = libs
+          .split(",")
+          .map((l: string) => l.trim())
+          .map((l: string) => l === "snakes" ? "decorations.pathmorphing" : l)
+          .join(",");
+        return `\\usetikzlibrary{${fixed}}`;
+      })
+      // Replace deprecated snake= style key with decoration= equivalent
+      .replace(/snake=coil,\s*segment amplitude=([^,]+),\s*segment length=([^,\]]+)/g,
+        (_: string, amp: string, len: string) =>
+          `decoration={coil,aspect=0.3,amplitude=${amp.trim()},segment length=${len.trim()}},decorate`
+      );
+  } else {
+    // Bare tikzpicture block — wrap with a standard preamble
+    let tikz = code;
 
-  // Strip centering commands — standalone handles alignment
-  tikz = tikz
-    .replace(/\\begin\{center\}/g, "")
-    .replace(/\\end\{center\}/g,   "")
-    .replace(/\\centering\b/g,     "")
-    .trim();
+    // Strip centering commands — standalone handles alignment
+    tikz = tikz
+      .replace(/\\begin\{center\}/g, "")
+      .replace(/\\end\{center\}/g,   "")
+      .replace(/\\centering\b/g,     "")
+      .trim();
 
-  const isCircuit = tikz.includes("\\begin{circuitikz}") || tikz.includes("\\ctikzset");
+    const isCircuit = tikz.includes("\\begin{circuitikz}") || tikz.includes("\\ctikzset");
 
-  const latexDoc = `\\documentclass[12pt,border=4pt]{standalone}
+    latexDoc = `\\documentclass[12pt,border=4pt]{standalone}
 \\usepackage{tikz}
 ${isCircuit
   ? "\\usepackage{circuitikz}"
@@ -46,6 +61,7 @@ ${isCircuit
 \\begin{document}
 ${tikz}
 \\end{document}`;
+  }
 
   const serviceUrl = (process.env.TIKZ_SERVICE_URL ?? "https://atomic-test.onrender.com")
     .replace(/\/$/, ""); // strip trailing slash

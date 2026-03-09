@@ -34,6 +34,11 @@ export const auth = betterAuth({
                 defaultValue: "user",       // new signups get "user" by default
                 input:        false,        // users cannot set their own role
             },
+            bio:{
+                type: "string",
+                defaultValue: "",
+                input: true
+            }
         },
     },
 })

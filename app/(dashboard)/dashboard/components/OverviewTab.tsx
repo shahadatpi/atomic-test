@@ -3,6 +3,7 @@ import WeeklyActivity from "./WeeklyActivity"
 import TopicProgress  from "./TopicProgress"
 import AttemptsTable  from "./AttemptsTable"
 import UpgradeBanner  from "./UpgradeBanner"
+import ExamHistory    from "./ExamHistory"
 import type { Attempt, Topic } from "../types"
 
 interface OverviewTabProps {
@@ -14,6 +15,7 @@ interface OverviewTabProps {
   weekDays: string[]
   topicProgress: { name: string; solved: number; total: number }[]
   attempts: Attempt[]
+  userId: string
   onPracticeClick: () => void
   onProgressClick: () => void
 }
@@ -27,6 +29,7 @@ export default function OverviewTab({
   weekDays,
   topicProgress,
   attempts,
+  userId,
   onPracticeClick,
   onProgressClick,
 }: OverviewTabProps) {
@@ -44,12 +47,12 @@ export default function OverviewTab({
         <TopicProgress topicProgress={topicProgress} onPracticeClick={onPracticeClick} />
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-          <h2 className="text-sm font-medium text-white">Recent Attempts</h2>
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="text-sm font-medium text-foreground">Recent Attempts</h2>
           <button
             onClick={onProgressClick}
-            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-xs text-muted-foreground/70 hover:text-foreground/80 transition-colors"
           >
             View all →
           </button>
@@ -60,6 +63,9 @@ export default function OverviewTab({
           onPracticeClick={onPracticeClick}
         />
       </div>
+
+      {/* Exam History */}
+      <ExamHistory userId={userId} />
 
       <UpgradeBanner />
     </div>

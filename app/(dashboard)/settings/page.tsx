@@ -24,10 +24,6 @@ export default function SettingsPage() {
     const router = useRouter()
 
     const [activeTab, setActiveTab] = useState<AnyTab>("Profile")
-    const [saving,    setSaving]    = useState(false)
-    const [saved,     setSaved]     = useState(false)
-    const [name,      setName]      = useState("")
-    const [bio,       setBio]       = useState("")
 
     const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
         dailyReminder: true,
@@ -41,7 +37,6 @@ export default function SettingsPage() {
 
     useEffect(() => {
         if (!isPending && !session) router.push("/login")
-        if (session?.user?.name)   setName(session.user.name)
     }, [session, isPending, router])
 
     useEffect(() => {
@@ -53,14 +48,6 @@ export default function SettingsPage() {
             setAdminStats({ totalUsers: users ?? 0, totalProblems: problems ?? 0 })
         })
     }, [session])
-
-    const handleSave = async () => {
-        setSaving(true)
-        await new Promise(r => setTimeout(r, 800))
-        setSaving(false)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
-    }
 
     const handleSignOut = async () => {
         await signOut({ fetchOptions: { onSuccess: () => router.push("/") } })
@@ -97,11 +84,7 @@ export default function SettingsPage() {
 
                 <div className="fade-in space-y-4" key={activeTab}>
                     {activeTab === "Profile" && (
-                        <ProfileTab
-                            session={session} isAdmin={isAdmin}
-                            name={name} bio={bio} saving={saving} saved={saved}
-                            onName={setName} onBio={setBio} onSave={handleSave}
-                        />
+                        <ProfileTab session={session} isAdmin={isAdmin} />
                     )}
                     {activeTab === "Appearance" && (
                         <AppearanceTab isAdmin={isAdmin} />

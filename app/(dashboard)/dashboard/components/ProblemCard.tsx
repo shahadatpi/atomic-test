@@ -33,10 +33,10 @@ export default function ProblemCard({
 
   if (!problem) {
     return (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12
+        <div className="bg-card border border-border rounded-xl p-12
                       flex flex-col items-center justify-center text-center space-y-3">
-          <BookOpen className="w-10 h-10 text-zinc-700" />
-          <p className="text-zinc-500">Select a problem to start practicing</p>
+          <BookOpen className="w-10 h-10 text-muted-foreground/40" />
+          <p className="text-muted-foreground/70">Select a problem to start practicing</p>
           {firstProblem && (
               <button
                   onClick={() => onSelectFirst(firstProblem)}
@@ -59,12 +59,12 @@ export default function ProblemCard({
   }
 
   return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-6">
+      <div className="bg-card border border-border rounded-xl p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <DifficultyBadge difficulty={problem.difficulty} className="rounded-full border" />
-            <span className="text-xs text-zinc-600">
+            <span className="text-xs text-muted-foreground/50">
             {problem.subjects?.name} · {problem.topics?.name}
           </span>
           </div>
@@ -76,13 +76,29 @@ export default function ProblemCard({
           )}
         </div>
 
+        {/* Standard/board tags */}
+        {problem.tags && problem.tags.length > 0 && (() => {
+          const STANDARD_TAGS = ["Board", "DU", "BUET", "CKRUET", "SUST", "Medical"]
+          const standardTags = problem.tags.filter((t: string) => STANDARD_TAGS.includes(t))
+          if (standardTags.length === 0) return null
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {standardTags.map((tag: string) => (
+                <span key={tag} className="text-[11px] font-mono font-medium text-violet-300 bg-violet-400/10 border border-violet-400/20 px-2.5 py-0.5 rounded-full">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )
+        })()}
+
         {/* Question */}
-        <div className="text-zinc-100 text-base leading-relaxed">
+        <div className="text-foreground text-base leading-relaxed">
           <MathText text={problem.question} />
         </div>
 
-        {/* Options */}
-        <div className="space-y-3">
+        {/* Options — 2×2 grid */}
+        <div className="grid grid-cols-2 gap-2">
           {(["a", "b", "c", "d"] as const).map(key => {
             const value     = problem[`option_${key}`]
             const isCorrect = revealed && key === problem.correct_answer
@@ -92,28 +108,28 @@ export default function ProblemCard({
                 <button
                     key={key}
                     onClick={() => { if (!revealed) setSelected(key) }}
-                    className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-xl border
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border
                           text-left text-sm transition-all ${
                         isCorrect       ? "border-emerald-400 bg-emerald-400/10 text-emerald-300"
                             : isWrong       ? "border-red-400    bg-red-400/10    text-red-300"
-                                : selected===key? "border-zinc-500   bg-zinc-800      text-white"
-                                    :                 "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/40 text-zinc-300"
+                                : selected===key? "border-zinc-500   bg-muted      text-foreground"
+                                    :                 "border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-foreground/80"
                     }`}
                 >
-              <span className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center
+              <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center
                                 text-xs font-mono font-bold uppercase ${
                   isCorrect       ? "bg-emerald-400 text-zinc-950"
-                      : isWrong       ? "bg-red-400    text-white"
-                          : selected===key? "bg-zinc-600   text-white"
-                              :                 "bg-zinc-800   text-zinc-500"
+                      : isWrong       ? "bg-red-400    text-foreground"
+                          : selected===key? "bg-zinc-600   text-foreground"
+                              :                 "bg-muted   text-muted-foreground/70"
               }`}>
                 {key}
               </span>
-                  <span className="flex-1">
+                  <span className="flex-1 text-xs leading-snug">
                 <MathText text={value} />
               </span>
-                  {isCorrect && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}
-                  {isWrong   && <XCircle    className="w-4 h-4 text-red-400    shrink-0" />}
+                  {isCorrect && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                  {isWrong   && <XCircle    className="w-3.5 h-3.5 text-red-400    shrink-0" />}
                 </button>
             )
           })}
@@ -123,7 +139,7 @@ export default function ProblemCard({
         {!revealed && problem.hint && (
             <button
                 onClick={() => setShowHint(h => !h)}
-                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-xs text-muted-foreground/70 hover:text-foreground/80 transition-colors"
             >
               {showHint ? "Hide hint ↑" : "Show hint ↓"}
             </button>
@@ -137,9 +153,9 @@ export default function ProblemCard({
 
         {/* Explanation */}
         {revealed && problem.explanation && (
-            <div className="border-t border-zinc-800 pt-4 space-y-2">
+            <div className="border-t border-border pt-4 space-y-2">
               <p className="text-xs text-emerald-400 font-mono">EXPLANATION</p>
-              <div className="text-zinc-400 text-sm leading-relaxed">
+              <div className="text-muted-foreground text-sm leading-relaxed">
                 <MathText text={problem.explanation} />
               </div>
             </div>
@@ -160,7 +176,7 @@ export default function ProblemCard({
                     : "Submit Answer"}
               </button>
           ) : (
-              <p className="text-center text-xs text-zinc-600 font-mono pt-1">
+              <p className="text-center text-xs text-muted-foreground/50 font-mono pt-1">
                 ← Pick the next problem from the list
               </p>
           )}
