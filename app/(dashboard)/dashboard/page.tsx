@@ -14,6 +14,9 @@ import { useDashboardData } from "./hooks/useDashboardData"
 import { useStats }         from "./hooks/useStats"
 import type { DashboardTab } from "./types"
 
+import ExamPage     from "../exam/page"
+import SettingsTab  from "./components/SettingsTab"
+
 export default function Page() {
   const { data: session, isPending } = useSession()
   const router   = useRouter()
@@ -23,7 +26,6 @@ export default function Page() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [greeting,    setGreeting]    = useState("Good morning")
 
-  // Filters (lifted here so PracticeTab and the hook share them)
   const [subjectFilter, setSubjectFilter] = useState("")
   const [topicFilter,   setTopicFilter]   = useState("")
   const [diffFilter,    setDiffFilter]    = useState("")
@@ -31,7 +33,7 @@ export default function Page() {
   useEffect(() => {
     const h = new Date().getHours()
     if (h >= 12 && h < 17) setGreeting("Good afternoon")
-    else if (h >= 17) setGreeting("Good evening")
+    else if (h >= 17)      setGreeting("Good evening")
   }, [])
 
   useEffect(() => {
@@ -40,29 +42,16 @@ export default function Page() {
 
   useEffect(() => { setSidebarOpen(false) }, [pathname])
 
-  const {
-    subjects,
-    topics,
-    problems,
-    attempts,
-    loadingProblems,
-    fetchProblems,
-    saveAttempt,
-  } = useDashboardData({
-    userId:        session?.user?.id,
-    subjectFilter,
-    topicFilter,
-    diffFilter,
-  })
+  const isAdmin = (session?.user as any)?.role === "admin"
 
   const {
-    totalAttempts,
-    correctAttempts,
-    accuracy,
-    streak,
-    weekActivity,
-    weekDays,
-    topicProgress,
+    subjects, topics, problems, attempts,
+    loadingProblems, fetchProblems, saveAttempt,
+  } = useDashboardData({ userId: session?.user?.id, subjectFilter, topicFilter, diffFilter })
+
+  const {
+    totalAttempts, correctAttempts, accuracy,
+    streak, weekActivity, weekDays, topicProgress,
   } = useStats(attempts, topics)
 
   if (isPending || !session) {
@@ -76,11 +65,12 @@ export default function Page() {
     )
   }
 
-  const firstName = session.user.name?.split(" ")[0] || "there"
+  const firstName = session?.user?.name?.split(" ")[0] || "there"
 
   const sidebarProps = {
     session,
     tab,
+    isAdmin,
     onTabChange: setTab,
     onClose:     () => setSidebarOpen(false),
   }
@@ -101,10 +91,7 @@ export default function Page() {
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div className="lg:hidden fixed inset-0 z-40 flex">
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setSidebarOpen(false)}
-            />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
             <aside className="relative z-50 w-64 flex flex-col bg-background border-r border-border h-full">
               <Sidebar {...sidebarProps} />
             </aside>
@@ -113,18 +100,23 @@ export default function Page() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">
-          <Topbar
-            greeting={greeting}
-            firstName={firstName}
-            tab={tab}
-            onTabChange={setTab}
-            onMenuOpen={() => setSidebarOpen(true)}
-          />
+          {/* Topbar hidden for exam/settings — they have their own headers */}
+          {tab !== "exam" && tab !== "settings" && (
+            <Topbar
+              greeting={greeting}
+              firstName={firstName}
+              tab={tab}
+              isAdmin={isAdmin}
+              onTabChange={setTab}
+              onMenuOpen={() => setSidebarOpen(true)}
+            />
+          )}
 
-          <div className="px-4 md:px-8 py-6">
-            {tab === "overview" && (
+          {/* Tab content */}
+          {tab === "overview" && (
+            <div className="px-4 md:px-8 py-6">
               <OverviewTab
-                userId={session.user.id}
+                userId={session?.user?.id ?? ""}
                 correctAttempts={correctAttempts}
                 totalAttempts={totalAttempts}
                 streak={streak}
@@ -136,9 +128,11 @@ export default function Page() {
                 onPracticeClick={() => setTab("practice")}
                 onProgressClick={() => setTab("progress")}
               />
-            )}
+            </div>
+          )}
 
-            {tab === "practice" && (
+          {tab === "practice" && (
+            <div className="px-4 md:px-8 py-6">
               <PracticeTab
                 subjects={subjects}
                 topics={topics}
@@ -154,9 +148,11 @@ export default function Page() {
                 onRefresh={fetchProblems}
                 onSaveAttempt={saveAttempt}
               />
-            )}
+            </div>
+          )}
 
-            {tab === "progress" && (
+          {tab === "progress" && (
+            <div className="px-4 md:px-8 py-6">
               <ProgressTab
                 attempts={attempts}
                 totalAttempts={totalAttempts}
@@ -164,8 +160,12 @@ export default function Page() {
                 accuracy={accuracy}
                 onPracticeClick={() => setTab("practice")}
               />
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Exam and Settings rendered inline — no page navigation */}
+          {tab === "exam"     && <ExamPage />}
+          {tab === "settings" && <SettingsTab />}
         </main>
       </div>
     </div>

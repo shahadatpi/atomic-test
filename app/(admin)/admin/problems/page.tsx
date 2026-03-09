@@ -55,11 +55,11 @@ function LaTeXField({
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className={`text-xs font-mono ${isCorrect ? "text-emerald-400" : "text-zinc-500"}`}>{label}</span>
+        <span className={`text-xs font-mono ${isCorrect ? "text-violet-400" : "text-zinc-500"}`}>{label}</span>
         <button
           type="button"
           onClick={() => setPreview(p => !p)}
-          className="flex items-center gap-1 text-xs text-zinc-600 hover:text-emerald-400 transition-colors"
+          className="flex items-center gap-1 text-xs text-zinc-600 hover:text-violet-400 transition-colors"
         >
           {preview ? <><EyeOff className="w-3 h-3" /> Edit</> : <><Eye className="w-3 h-3" /> Preview</>}
         </button>
@@ -76,7 +76,7 @@ function LaTeXField({
           onChange={e => onChange(e.target.value)}
           rows={rows}
           placeholder={placeholder}
-          className="w-full bg-zinc-950 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all resize-y font-mono"
+          className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all resize-y font-mono"
         />
       )}
     </div>
@@ -153,7 +153,7 @@ function EditModal({ problem, onClose, onSave }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
           <div>
-            <p className="text-xs text-emerald-400 font-mono tracking-widest">ADMIN · EDIT PROBLEM</p>
+            <p className="text-xs text-violet-400 font-mono tracking-widest">ADMIN · EDIT PROBLEM</p>
             <p className="text-xs text-zinc-600 font-mono mt-0.5 truncate max-w-sm">{problem.id}</p>
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
@@ -189,7 +189,7 @@ function EditModal({ problem, onClose, onSave }: {
                     title={`Mark ${key.toUpperCase()} as correct answer`}
                     className={`mt-6 w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-sm font-bold font-mono transition-all ${
                       correctAnswer === key
-                        ? "bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-400/20 ring-2 ring-emerald-400/40"
+                        ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20 ring-2 ring-violet-500/40"
                         : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300"
                     }`}
                   >
@@ -228,7 +228,7 @@ function EditModal({ problem, onClose, onSave }: {
                   <button key={d} type="button" onClick={() => setDifficulty(d)}
                     className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-all capitalize ${
                       difficulty === d
-                        ? d === "easy"   ? "border-emerald-400 bg-emerald-400/10 text-emerald-400"
+                        ? d === "easy"   ? "border-emerald-400 bg-emerald-400/10 text-violet-400"
                         : d === "medium" ? "border-amber-400 bg-amber-400/10 text-amber-400"
                         :                  "border-red-400 bg-red-400/10 text-red-400"
                         : "border-zinc-800 text-zinc-500 hover:border-zinc-600"
@@ -273,7 +273,7 @@ function EditModal({ problem, onClose, onSave }: {
               <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
               <input value={tags} onChange={e => setTags(e.target.value)}
                 placeholder="Board, BUET, chain-rule, oscillation…"
-                className="w-full bg-zinc-950 border border-zinc-800 focus:border-emerald-500/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
+                className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
               />
             </div>
             {tagList.length > 0 && (
@@ -294,7 +294,7 @@ function EditModal({ problem, onClose, onSave }: {
             <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-1.5">Source <span className="normal-case text-zinc-700">(optional)</span></p>
             <input value={source} onChange={e => setSource(e.target.value)}
               placeholder="e.g. BUET 2024, HSC Board 2023"
-              className="w-full bg-zinc-950 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
+              className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
             />
           </div>
 
@@ -307,7 +307,7 @@ function EditModal({ problem, onClose, onSave }: {
         <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800 bg-zinc-950/60 shrink-0">
           <button onClick={onClose} className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Cancel</button>
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-zinc-950 font-semibold text-sm px-6 py-2.5 rounded-xl transition-colors">
+            className="flex items-center gap-2 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-colors">
             {saving
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
               : <><Save className="w-4 h-4" /> Save Changes</>}
@@ -322,7 +322,7 @@ function EditModal({ problem, onClose, onSave }: {
 
 function DiffBadge({ level }: { level: string }) {
   const styles: Record<string, string> = {
-    easy:   "text-emerald-400 border-emerald-400/30 bg-emerald-400/10",
+    easy:   "text-violet-400 border-emerald-400/30 bg-emerald-400/10",
     medium: "text-amber-400   border-amber-400/30   bg-amber-400/10",
     hard:   "text-red-400     border-red-400/30     bg-red-400/10",
   };
@@ -396,7 +396,7 @@ function ProblemCard({ problem: init, onDelete, number }: {
 
             <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
               <button onClick={() => setEditing(true)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-600 hover:text-emerald-400 hover:bg-emerald-400/10 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-600 hover:text-violet-400 hover:bg-emerald-400/10 transition-colors"
                 title="Edit problem">
                 <Pencil className="w-3.5 h-3.5" />
               </button>
@@ -423,10 +423,10 @@ function ProblemCard({ problem: init, onDelete, number }: {
                       : "border-zinc-800 text-zinc-400"
                   }`}>
                     <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center text-xs font-bold font-mono mt-0.5 ${
-                      isCorrect ? "bg-emerald-400 text-zinc-950" : "bg-zinc-800 text-zinc-500"
+                      isCorrect ? "bg-violet-500 text-white" : "bg-zinc-800 text-zinc-500"
                     }`}>{opt.toUpperCase()}</span>
                     <span className="flex-1 text-xs leading-relaxed"><MathText text={text} /></span>
-                    {isCorrect && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />}
+                    {isCorrect && <CheckCircle className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />}
                   </div>
                 );
               })}
@@ -436,7 +436,7 @@ function ProblemCard({ problem: init, onDelete, number }: {
               <div className="border border-zinc-800 rounded-xl overflow-hidden">
                 <button onClick={() => setExplOpen(e => !e)}
                   className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-mono text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors">
-                  <span className="text-emerald-400">EXPLANATION</span>
+                  <span className="text-violet-400">EXPLANATION</span>
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${explOpen ? "rotate-180" : ""}`} />
                 </button>
                 {explOpen && (
@@ -526,13 +526,13 @@ export default function ProblemsListPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-emerald-400 font-mono tracking-widest mb-1">ADMIN</p>
+            <p className="text-xs text-violet-400 font-mono tracking-widest mb-1">ADMIN</p>
             <h1 className="text-2xl font-bold text-white">
               Problems <span className="ml-3 text-base font-normal text-zinc-600">({total})</span>
             </h1>
           </div>
           <a href="/admin/add-problem"
-            className="flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors shadow-lg shadow-emerald-400/20">
+            className="flex items-center gap-2 bg-violet-500 hover:bg-violet-400 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors shadow-lg shadow-violet-500/20">
             <BookOpen className="w-4 h-4" /> Add Problem
           </a>
         </div>
@@ -543,7 +543,7 @@ export default function ProblemsListPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
             <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
               placeholder="Search questions..."
-              className="w-full bg-zinc-950 border border-zinc-800 focus:border-emerald-500/50 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
+              className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -599,13 +599,13 @@ export default function ProblemsListPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+            <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
           </div>
         ) : problems.length === 0 ? (
           <div className="text-center py-20 space-y-2">
             <BookOpen className="w-10 h-10 text-zinc-800 mx-auto" />
             <p className="text-zinc-600">No problems found</p>
-            <a href="/admin/add-problem" className="text-sm text-emerald-400 hover:underline">Add your first problem →</a>
+            <a href="/admin/add-problem" className="text-sm text-violet-400 hover:underline">Add your first problem →</a>
           </div>
         ) : (
           <div className="space-y-3">
@@ -637,7 +637,7 @@ export default function ProblemsListPage() {
                     const v = parseInt(e.target.value) - 1;
                     if (v >= 0 && v < totalPages) setPage(v);
                   }}
-                  className="w-14 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-center text-zinc-200 outline-none focus:border-emerald-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-14 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-center text-zinc-200 outline-none focus:border-violet-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 <span className="text-zinc-600">/ {totalPages}</span>
               </div>
@@ -668,7 +668,7 @@ export default function ProblemsListPage() {
                     onClick={() => setPage(item as number)}
                     className={`min-w-[32px] px-2 py-1.5 rounded-lg border text-xs font-mono transition-colors ${
                       page === item
-                        ? "border-emerald-400 bg-emerald-400/10 text-emerald-400 font-semibold"
+                        ? "border-emerald-400 bg-emerald-400/10 text-violet-400 font-semibold"
                         : "border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
                     }`}
                   >{(item as number) + 1}</button>

@@ -1,28 +1,48 @@
 "use client"
 
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signOut } from "@/lib/auth-client"
 import {
-  X, LayoutDashboard, BookOpen, BarChart2, Settings, LogOut, GraduationCap,
+  X, LayoutDashboard, BookOpen, BarChart2,
+  Settings, LogOut, GraduationCap,
 } from "lucide-react"
 import type { DashboardTab } from "../types"
 
 interface SidebarProps {
-  session: any
-  tab: DashboardTab
+  session:     any
+  tab:         DashboardTab
+  isAdmin:     boolean
   onTabChange: (tab: DashboardTab) => void
-  onClose: () => void
+  onClose:     () => void
 }
 
 const NAV = [
-  { label: "Overview", icon: LayoutDashboard, t: "overview" as DashboardTab },
-  { label: "Practice",  icon: BookOpen,        t: "practice"  as DashboardTab },
-  { label: "Progress",  icon: BarChart2,       t: "progress"  as DashboardTab },
+  { label: "Overview",  icon: LayoutDashboard, t: "overview"  as DashboardTab },
+  { label: "Practice",  icon: BookOpen,         t: "practice"  as DashboardTab },
+  { label: "Progress",  icon: BarChart2,        t: "progress"  as DashboardTab },
+  { label: "Exam",      icon: GraduationCap,    t: "exam"      as DashboardTab },
 ]
 
-export default function Sidebar({ session, tab, onTabChange, onClose }: SidebarProps) {
+export default function Sidebar({ session, tab, isAdmin, onTabChange, onClose }: SidebarProps) {
   const router = useRouter()
+
+  const navItem = (label: string, icon: any, t: DashboardTab) => {
+    const Icon = icon
+    return (
+      <button
+        key={label}
+        onClick={() => { onTabChange(t); onClose() }}
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+          tab === t
+            ? "bg-muted text-foreground font-medium"
+            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        }`}
+      >
+        <Icon className="w-4 h-4" />
+        {label}
+      </button>
+    )
+  }
 
   return (
     <>
@@ -32,9 +52,12 @@ export default function Sidebar({ session, tab, onTabChange, onClose }: SidebarP
           <div className="w-7 h-7 bg-emerald-400 rounded-md flex items-center justify-center">
             <span className="text-zinc-950 text-xs font-bold">A</span>
           </div>
-          <Link href="/atomic-test/public" className="font-semibold text-foreground tracking-tight">
+          <button
+            onClick={() => { onTabChange("overview"); onClose() }}
+            className="font-semibold text-foreground tracking-tight hover:text-emerald-400 transition-colors"
+          >
             AtomicTest
-          </Link>
+          </button>
         </div>
         <button
           onClick={onClose}
@@ -45,51 +68,46 @@ export default function Sidebar({ session, tab, onTabChange, onClose }: SidebarP
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {NAV.map(({ label, icon: Icon, t }) => (
-          <button
-            key={label}
-            onClick={() => { onTabChange(t); onClose() }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-              tab === t
-                ? "bg-muted text-foreground font-medium"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
-          </button>
-        ))}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {NAV.map(({ label, icon, t }) => navItem(label, icon, t))}
 
         <div className="pt-2 mt-2 border-t border-border/60 space-y-0.5">
-          <Link href="/exam" onClick={onClose}>
-            <span className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all">
-              <GraduationCap className="w-4 h-4" /> Exam
-            </span>
-          </Link>
-          <Link href="/dashboard/settings" onClick={onClose}>
-            <span className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all">
-              <Settings className="w-4 h-4" /> Settings
-            </span>
-          </Link>
+          {navItem("Settings", Settings, "settings")}
         </div>
+
+        {/* Admin links */}
+        {isAdmin && (
+          <div className="pt-2 mt-2 border-t border-border/60 space-y-0.5">
+            <p className="px-3 py-1 text-xs text-muted-foreground/40 font-mono uppercase tracking-wider">Admin</p>
+            <button
+              onClick={() => { router.push("/admin/problems"); onClose() }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-amber-400/80 hover:bg-amber-400/10 hover:text-amber-300 transition-all"
+            >
+              <BookOpen className="w-4 h-4" /> Problems
+            </button>
+            <button
+              onClick={() => { router.push("/admin/add-problem"); onClose() }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-amber-400/80 hover:bg-amber-400/10 hover:text-amber-300 transition-all"
+            >
+              <LayoutDashboard className="w-4 h-4" /> Add Problem
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* User */}
       <div className="px-3 py-4 border-t border-border">
         <div className="flex items-center gap-3 px-3 py-2">
           <div className="w-8 h-8 rounded-full bg-emerald-400 flex items-center justify-center text-zinc-950 text-sm font-semibold shrink-0">
-            {session.user.name?.[0]?.toUpperCase() || "U"}
+            {session?.user?.name?.[0]?.toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{session.user.name}</p>
-            <p className="text-xs text-muted-foreground/70 truncate">{session.user.email}</p>
+            <p className="text-sm font-medium text-foreground truncate">{session?.user?.name}</p>
+            <p className="text-xs text-muted-foreground/70 truncate">{session?.user?.email}</p>
           </div>
         </div>
         <button
-          onClick={() =>
-            signOut({ fetchOptions: { onSuccess: () => router.push("/") } })
-          }
+          onClick={() => signOut({ fetchOptions: { onSuccess: () => router.push("/") } })}
           className="mt-1 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                      text-muted-foreground hover:bg-red-400/10 hover:text-red-300 transition-all text-left"
         >

@@ -100,10 +100,10 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
     if (p.startsWith("_") && p.endsWith("_"))
       return <em key={i}>{p.slice(1, -1)}</em>;
     if (p.startsWith("`") && p.endsWith("`"))
-      return <code key={i} className="font-mono text-emerald-400 bg-zinc-800 px-1 rounded">{p.slice(1, -1)}</code>;
+      return <code key={i} className="font-mono text-violet-400 bg-zinc-800 px-1 rounded">{p.slice(1, -1)}</code>;
     if (p.startsWith("%%BOX:") && p.endsWith("%%"))
       return (
-          <span key={i} className="inline-block border border-emerald-400/60 text-emerald-300 rounded px-2 py-0.5 text-xs font-semibold mx-0.5 align-middle">
+          <span key={i} className="inline-block border border-violet-400/60 text-emerald-300 rounded px-2 py-0.5 text-xs font-semibold mx-0.5 align-middle">
           {p.slice(6, -2)}
         </span>
       );
@@ -163,12 +163,12 @@ function LaTeXField({ label, value, onChange, placeholder, rows = 3, hint }: {
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full bg-zinc-900 border border-zinc-800 focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-700 resize-none outline-none transition-all font-mono"
+            className="w-full bg-zinc-900 border border-zinc-800 focus:border-violet-500/60 focus:ring-1 focus:ring-emerald-500/20 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-700 resize-none outline-none transition-all font-mono"
         />
           <button
               type="button"
               onClick={() => setPreview(p => !p)}
-              className="absolute top-2.5 right-3 text-zinc-600 hover:text-emerald-400 transition-colors"
+              className="absolute top-2.5 right-3 text-zinc-600 hover:text-violet-400 transition-colors"
               title="Toggle preview"
           >
             {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -195,7 +195,7 @@ function Select({ value, onChange, options, placeholder }: {
         <select
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full appearance-none bg-zinc-900 border border-zinc-800 focus:border-emerald-500/60 rounded-xl px-4 py-2.5 text-sm text-zinc-200 outline-none transition-all pr-9"
+            className="w-full appearance-none bg-zinc-900 border border-zinc-800 focus:border-violet-500/60 rounded-xl px-4 py-2.5 text-sm text-zinc-200 outline-none transition-all pr-9"
         >
           {placeholder && <option value="">{placeholder}</option>}
           {options.map(o => (
@@ -320,14 +320,14 @@ export default function ProblemEditor() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-emerald-400 font-mono tracking-widest mb-1">ADMIN</p>
+              <p className="text-xs text-violet-400 font-mono tracking-widest mb-1">ADMIN</p>
               <h1 className="text-2xl font-bold text-white">Add Problem</h1>
             </div>
             <button
                 onClick={() => setPreview(p => !p)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm transition-all ${
                     preview
-                        ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-400"
+                        ? "border-violet-400/50 bg-violet-500/10 text-violet-400"
                         : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
                 }`}
             >
@@ -338,7 +338,7 @@ export default function ProblemEditor() {
 
           {/* Status banners */}
           {status === "success" && (
-              <div className="flex items-center gap-3 bg-emerald-400/10 border border-emerald-400/30 rounded-xl px-4 py-3 text-emerald-400 text-sm">
+              <div className="flex items-center gap-3 bg-violet-500/10 border border-violet-400/30 rounded-xl px-4 py-3 text-violet-400 text-sm">
                 <CheckCircle className="w-4 h-4 shrink-0" />
                 Problem saved successfully!
               </div>
@@ -410,58 +410,30 @@ export default function ProblemEditor() {
                     value={form.source}
                     onChange={e => set("source", e.target.value)}
                     placeholder="e.g. HSC 2023"
-                    className="w-full bg-zinc-900 border border-zinc-800 focus:border-emerald-500/60 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
+                    className="w-full bg-zinc-900 border border-zinc-800 focus:border-violet-500/60 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
                 />
               </Field>
             </div>
 
-            <Field label="Tags">
-              {/* Standard tags — clickable toggles */}
-              <div className="space-y-3">
-                <p className="text-xs text-zinc-600">Exam Standard (select all that apply)</p>
-                <div className="flex flex-wrap gap-2">
-                  {(["Board", "DU", "BUET", "CKRUET", "SUST", "Medical"] as const).map(std => {
-                    const active = form.tags.split(",").map(t => t.trim()).includes(std)
-                    const toggle = () => {
-                      const current = form.tags.split(",").map(t => t.trim()).filter(Boolean)
-                      const updated = active ? current.filter(t => t !== std) : [...current, std]
-                      set("tags", updated.join(", "))
-                    }
-                    return (
-                      <button key={std} type="button" onClick={toggle}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                          active
-                            ? "bg-violet-400/10 border-violet-400 text-violet-300"
-                            : "bg-zinc-900 border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
-                        }`}>
-                        {active ? "✓ " : ""}{std}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Free-form extra tags */}
-                <div className="relative">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
-                  <input
-                      value={form.tags}
-                      onChange={e => set("tags", e.target.value)}
-                      placeholder="Board, BUET, calculus, chain-rule…"
-                      className="w-full bg-zinc-900 border border-zinc-800 focus:border-emerald-500/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
-                  />
-                </div>
-                {form.tags && (
-                  <div className="flex flex-wrap gap-1.5">
+            <Field label="Tags" hint="comma separated">
+              <div className="relative">
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+                <input
+                    value={form.tags}
+                    onChange={e => set("tags", e.target.value)}
+                    placeholder="calculus, differentiation, chain-rule"
+                    className="w-full bg-zinc-900 border border-zinc-800 focus:border-violet-500/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
+                />
+              </div>
+              {form.tags && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
                     {form.tags.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
-                      <span key={tag} className={`text-xs px-2.5 py-0.5 rounded-full border font-mono ${
-                        ["Board","DU","BUET","CKRUET","SUST","Medical"].includes(tag)
-                          ? "bg-violet-400/10 border-violet-400/30 text-violet-300"
-                          : "bg-zinc-800 border-zinc-700 text-zinc-400"
-                      }`}>{tag}</span>
+                        <span key={tag} className="text-xs bg-zinc-800 border border-zinc-700 text-zinc-400 px-2.5 py-1 rounded-full">
+                    {tag}
+                  </span>
                     ))}
                   </div>
-                )}
-              </div>
+              )}
             </Field>
           </div>
 
@@ -494,7 +466,7 @@ export default function ProblemEditor() {
                           onClick={() => set("correct_answer", answerKey)}
                           className={`mt-3 w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold font-mono transition-all ${
                               isCorrect
-                                  ? "bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-400/20"
+                                  ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
                                   : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"
                           }`}
                           title={`Mark ${label} as correct`}
@@ -549,7 +521,7 @@ export default function ProblemEditor() {
                 <div className="flex items-center gap-2 flex-wrap">
                   {form.difficulty && (
                       <span className={`text-xs px-3 py-1 rounded-full border font-mono ${
-                          form.difficulty === "easy"   ? "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" :
+                          form.difficulty === "easy"   ? "text-violet-400 border-violet-400/30 bg-violet-500/10" :
                               form.difficulty === "medium" ? "text-amber-400 border-amber-400/30 bg-amber-400/10" :
                                   "text-red-400 border-red-400/30 bg-red-400/10"
                       }`}>{form.difficulty}</span>
@@ -574,14 +546,14 @@ export default function ProblemEditor() {
                     return (
                         <div key={key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm ${
                             isCorrect
-                                ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300"
+                                ? "border-violet-400/50 bg-violet-500/10 text-emerald-300"
                                 : "border-zinc-800 text-zinc-400"
                         }`}>
                     <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center text-xs font-bold font-mono ${
-                        isCorrect ? "bg-emerald-400 text-zinc-950" : "bg-zinc-800 text-zinc-500"
+                        isCorrect ? "bg-violet-500 text-white" : "bg-zinc-800 text-zinc-500"
                     }`}>{label}</span>
                           <MathText text={form[key]} />
-                          {isCorrect && <span className="ml-auto text-emerald-400 text-xs">✓ correct</span>}
+                          {isCorrect && <span className="ml-auto text-violet-400 text-xs">✓ correct</span>}
                         </div>
                     );
                   })}
@@ -590,7 +562,7 @@ export default function ProblemEditor() {
                 {/* Explanation */}
                 {form.explanation && (
                     <div className="border-t border-zinc-800 pt-4 space-y-2">
-                      <p className="text-xs text-emerald-400 font-mono">EXPLANATION</p>
+                      <p className="text-xs text-violet-400 font-mono">EXPLANATION</p>
                       <div className="text-zinc-400 text-sm leading-relaxed">
                         <MathText text={form.explanation} />
                       </div>
@@ -612,7 +584,7 @@ export default function ProblemEditor() {
             <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex items-center gap-2 bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-300 text-zinc-950 font-semibold text-sm px-8 py-3 rounded-xl transition-colors shadow-lg shadow-emerald-400/20"
+                className="flex items-center gap-2 bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-violet-400 text-white font-semibold text-sm px-8 py-3 rounded-xl transition-colors shadow-lg shadow-violet-500/20"
             >
               {loading
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>

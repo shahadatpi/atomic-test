@@ -41,4 +41,4 @@ export interface Topic {
   subject_id: string
 }
 
-export type DashboardTab = "overview" | "practice" | "progress"
+export type DashboardTab = "overview" | "practice" | "progress" | "exam" | "settings"

@@ -1,45 +1,49 @@
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { redirect } from "next/navigation"
+"use client"
 
-export default async function AdminLayout({
-                                            children,
-                                          }: {
-  children: React.ReactNode
-}) {
-  // Full session check (hits database)
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+import { useEffect } from "react"
+import { useSession } from "@/lib/auth-client"
+import { useRouter } from "next/navigation"
 
-  // Not logged in → go to login
-  if (!session) {
-    redirect("/login?callbackUrl=/admin")
-  }
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending } = useSession()
+  const router = useRouter()
 
-  // Logged in but not admin → go to dashboard
-  // session.user.role comes from the role column we added
-  if (session.user.role !== "admin") {
-    redirect("/dashboard")
-  }
+  const isAdmin = (session?.user as any)?.role === "admin"
 
-  return (
-      <div className="min-h-screen bg-zinc-950">
-        <div className="border-b border-zinc-800 bg-zinc-900 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-          <span className="text-xs font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-full">
-            ADMIN
-          </span>
-            <span className="text-sm text-zinc-400">AtomicTest Console</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <a href="/admin/problems"    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Problems</a>
-            <a href="/admin/add-problem" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Add Problem</a>
-            <a href="/dashboard"         className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">← Back to App</a>
-            <span className="text-xs text-zinc-600">{session.user.email}</span>
-          </div>
-        </div>
-        {children}
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push("/login")
+      return
+    }
+    if (!isPending && session && !isAdmin) {
+      router.push("/dashboard")
+    }
+  }, [session, isPending, isAdmin, router])
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
       </div>
-  )
+    )
+  }
+
+  if (!session || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <p className="text-red-400 text-lg font-semibold">Access Denied</p>
+          <p className="text-zinc-500 text-sm">Admin access required.</p>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="mt-2 px-4 py-2 bg-zinc-800 text-zinc-200 rounded-lg text-sm hover:bg-zinc-700 transition-colors"
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
 }
