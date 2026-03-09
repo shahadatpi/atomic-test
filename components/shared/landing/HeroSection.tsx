@@ -106,7 +106,7 @@ export default function HeroSection() {
 
         {/* CTAs */}
         <div className="fu d4 flex flex-col sm:flex-row items-center gap-3 mb-16">
-          <Link href={session ? "/api/dashboard" : "/api/sign-up"}>
+          <Link href={session ? "/dashboard" : "/sign-up"}>
             <button className="cta-primary bg-emerald-400 text-zinc-950 font-semibold px-8 py-3.5 rounded-2xl text-base">
               {session ? "Go to Dashboard →" : "Start Practicing Free →"}
             </button>

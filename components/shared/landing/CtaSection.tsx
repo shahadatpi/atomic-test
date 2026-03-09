@@ -30,7 +30,7 @@ export default function CtaSection() {
       </p>
 
       <div className="relative z-10 flex flex-col sm:flex-row gap-3">
-        <Link href="/api/sign-up">
+        <Link href="/sign-up">
           <button className="cta-primary bg-emerald-400 text-zinc-950 font-semibold px-10 py-4 rounded-2xl text-base">
             Create Free Account →
           </button>

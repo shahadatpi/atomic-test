@@ -49,12 +49,12 @@ export function SignupForm({
 
     console.log("Signed up user:", data);
     toast.success("Account created successfully!");
-    router.push("/api/dashboard");
+    router.push("/dashboard");
     router.refresh();
   };
 
   const handleGoogleSignIn = async () => {
-    await signIn.social({ provider: "google", callbackURL: "/api/dashboard" });
+    await signIn.social({ provider: "google", callbackURL: "/dashboard" });
   };
 
   /* password strength */

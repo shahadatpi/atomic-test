@@ -54,7 +54,7 @@ export default function ModeToggler() {
                         <Button variant="link" className="w-full text-left">Contact</Button>
                     </Link>
 
-                    <Link href="/api/sign-up" onClick={() => setMobileOpen(false)}>
+                    <Link href="/sign-up" onClick={() => setMobileOpen(false)}>
                         <Button className="w-full">Sign Up</Button>
                     </Link>
                 </div>

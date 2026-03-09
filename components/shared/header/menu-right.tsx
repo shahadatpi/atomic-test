@@ -87,7 +87,7 @@ export default function MenuRight() {
             </Button>
 
             {!session ? (
-                <Link href="/api/sign-up" className="hidden sm:block">
+                <Link href="/sign-up" className="hidden sm:block">
                     <Button>Sign In</Button>
                 </Link>
             ) : (
@@ -126,7 +126,7 @@ export default function MenuRight() {
                             {/* Menu items */}
                             <div className="py-1">
                                 <button
-                                    onClick={() => { setDropdownOpen(false); router.push("/api/dashboard"); }}
+                                    onClick={() => { setDropdownOpen(false); router.push("/dashboard"); }}
                                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors text-left"
                                 >
                                     <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
@@ -134,7 +134,7 @@ export default function MenuRight() {
                                 </button>
 
                                 <button
-                                    onClick={() => { setDropdownOpen(false); router.push("/api/profile"); }}
+                                    onClick={() => { setDropdownOpen(false); router.push("/profile"); }}
                                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors text-left"
                                 >
                                     <User className="h-4 w-4 text-muted-foreground" />
