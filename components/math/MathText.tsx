@@ -41,6 +41,16 @@ function tokenise(text: string): string {
       m => `%%TIKZ:${encodeURIComponent(m)}%%`)
     .replace(/\\begin\{circuitikz\}[\s\S]*?\\end\{circuitikz\}/g,
       m => `%%TIKZ:${encodeURIComponent(m)}%%`)
+    // Lists: \begin{itemize} and \begin{enumerate} → %%LIST:%%
+    .replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end\{\1\}/g,
+      (_, env, body) => {
+        const ordered = env === "enumerate"
+        const items = body
+          .split(/\\item/)
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+        return `%%LIST:${encodeURIComponent(JSON.stringify({ ordered, items }))}%%`
+      })
     // Display math \[...\] → %%DM:%% (may span multiple lines)
     .replace(/\\\[([\s\S]*?)\\\]/g,
       (_, inner) => `%%DM:${encodeURIComponent(inner)}%%`)
@@ -50,6 +60,9 @@ function tokenise(text: string): string {
     // LaTeX environments \begin{align}...\end{align} etc → %%DM:%%
     .replace(/\\begin\{(align\*?|equation\*?|gather\*?|multline\*?|array)\}([\s\S]*?)\\end\{\1\}/g,
       (_, env, body) => `%%DM:${encodeURIComponent(`\\begin{${env}}${body}\\end{${env}}`)}%%`)
+    // Lists: \begin{itemize} and \begin{enumerate}
+    .replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end\{\1\}/g,
+      (_, env, body) => `%%LIST:${env}:${encodeURIComponent(body)}%%`)
 }
 
 // ── Preprocess LaTeX text commands into markdown ──────────────────────────
@@ -100,7 +113,7 @@ function renderInline(latex: string, key: string): React.ReactNode {
 // ── Render a single segment (tokens already extracted) ───────────────────
 function renderSegment(seg: string, keyPrefix: number): React.ReactNode[] {
   // Split on ALL token types first
-  const parts = seg.split(/(%%TIKZ:.*?%%|%%DM:.*?%%|%%IM:.*?%%)/g)
+  const parts = seg.split(/(%%TIKZ:.*?%%|%%DM:.*?%%|%%IM:.*?%%|%%LIST:.*?%%)/gs)
 
   return parts.flatMap((p, i) => {
     const key = `${keyPrefix}-${i}`
@@ -113,6 +126,24 @@ function renderSegment(seg: string, keyPrefix: number): React.ReactNode[] {
 
     if (p.startsWith("%%IM:") && p.endsWith("%%"))
       return [renderInline(decodeURIComponent(p.slice(5, -2)), key)]
+
+    if (p.startsWith("%%LIST:") && p.endsWith("%%")) {
+      try {
+        const { ordered, items } = JSON.parse(decodeURIComponent(p.slice(7, -2)))
+        const Tag = ordered ? "ol" : "ul"
+        return [(
+          <Tag key={key} className={ordered ? "list-decimal list-inside space-y-1.5 my-2 pl-2" : "list-disc list-inside space-y-1.5 my-2 pl-2"}>
+            {(items as string[]).map((item: string, idx: number) => (
+              <li key={idx} className="text-sm leading-relaxed">
+                {renderSegment(item.trim(), keyPrefix * 1000 + idx)}
+              </li>
+            ))}
+          </Tag>
+        )]
+      } catch {
+        return [<span key={key} className="text-red-400 text-xs">[list error]</span>]
+      }
+    }
 
     // Plain text: preprocess then handle $$ and $ inline math
     const processed = preprocessText(p)

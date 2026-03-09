@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import MathText, { stripTikz } from "@/components/math/MathText";
 import {
@@ -42,7 +42,7 @@ const STANDARD_TAGS = ["Board", "DU", "BUET", "CKRUET", "SUST", "Medical"];
 /* ─────────────────────── LaTeX field with preview toggle ───────────────── */
 
 function LaTeXField({
-  label, value, onChange, rows = 2, placeholder, isCorrect,
+  label, value, onChange, rows = 3, placeholder, isCorrect, autoGrow = false,
 }: {
   label:       string;
   value:       string;
@@ -50,8 +50,18 @@ function LaTeXField({
   rows?:       number;
   placeholder?: string;
   isCorrect?:  boolean;
+  autoGrow?:   boolean;
 }) {
   const [preview, setPreview] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!autoGrow || !taRef.current) return;
+    const ta = taRef.current;
+    ta.style.height = "auto";
+    ta.style.height = Math.max(ta.scrollHeight, rows * 24) + "px";
+  }, [value, autoGrow, rows]);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
@@ -65,18 +75,20 @@ function LaTeXField({
         </button>
       </div>
       {preview ? (
-        <div className={`min-h-[52px] rounded-xl px-4 py-3 text-sm leading-relaxed border ${
+        <div className={`min-h-[100px] rounded-xl px-4 py-3 text-sm leading-relaxed border ${
           isCorrect ? "border-emerald-400/30 bg-emerald-400/5 text-emerald-200" : "border-zinc-800 bg-zinc-950 text-zinc-300"
         }`}>
           {value.trim() ? <MathText text={value} /> : <span className="text-zinc-700 italic text-xs">empty</span>}
         </div>
       ) : (
         <textarea
+          ref={taRef}
           value={value}
           onChange={e => onChange(e.target.value)}
           rows={rows}
           placeholder={placeholder}
-          className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all resize-y font-mono"
+          style={autoGrow ? { resize: "none", overflow: "hidden" } : undefined}
+          className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all font-mono min-h-[80px] resize-y"
         />
       )}
     </div>
@@ -148,7 +160,7 @@ function EditModal({ problem, onClose, onSave }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-5xl bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] h-[95vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
@@ -162,7 +174,7 @@ function EditModal({ problem, onClose, onSave }: {
         </div>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto px-6 py-5 space-y-6">
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
 
           {/* Question */}
           <LaTeXField
@@ -215,7 +227,8 @@ function EditModal({ problem, onClose, onSave }: {
             label="EXPLANATION (optional)"
             value={explanation}
             onChange={setExplanation}
-            rows={4}
+            rows={8}
+            autoGrow
             placeholder="Step-by-step solution shown after student answers..."
           />
 
@@ -520,10 +533,59 @@ export default function ProblemsListPage() {
   const filteredTopics = subjectFilter ? topics.filter(t => t.subject_id === subjectFilter) : topics;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  /* ── Shared pagination component ── */
+  const Pagination = () => totalPages <= 1 ? null : (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-zinc-500">
+          <span className="text-zinc-300 font-medium">{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)}</span>
+          <span className="text-zinc-600"> of </span>
+          <span className="text-zinc-300 font-medium">{total}</span>
+          <span className="text-zinc-600"> problems</span>
+        </p>
+        <div className="flex items-center gap-2 text-xs text-zinc-500">
+          <span>Go to</span>
+          <input
+            type="number" min={1} max={totalPages} value={page + 1}
+            onChange={e => { const v = parseInt(e.target.value) - 1; if (v >= 0 && v < totalPages) setPage(v); }}
+            className="w-14 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-center text-zinc-200 outline-none focus:border-violet-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span className="text-zinc-600">/ {totalPages}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
+          className="px-3 py-1.5 rounded-lg border border-zinc-800 text-xs text-zinc-400 disabled:opacity-30 hover:border-zinc-600 hover:text-zinc-200 transition-colors">← Prev</button>
+
+        {Array.from({ length: totalPages }, (_, i) => i)
+          .filter(i => i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 2)
+          .reduce((acc: (number | string)[], i, idx, arr) => {
+            if (idx > 0 && (arr[idx - 1] as number) < i - 1) acc.push("…");
+            acc.push(i);
+            return acc;
+          }, [])
+          .map((item, idx) => item === "…" ? (
+            <span key={`e-${idx}`} className="px-1 text-zinc-600 text-xs">…</span>
+          ) : (
+            <button key={item} onClick={() => setPage(item as number)}
+              className={`min-w-[32px] px-2 py-1.5 rounded-lg border text-xs font-mono transition-colors ${
+                page === item
+                  ? "border-violet-500 bg-violet-500/10 text-violet-400 font-semibold"
+                  : "border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+              }`}>{(item as number) + 1}</button>
+          ))}
+
+        <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
+          className="px-3 py-1.5 rounded-lg border border-zinc-800 text-xs text-zinc-400 disabled:opacity-30 hover:border-zinc-600 hover:text-zinc-200 transition-colors">Next →</button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 py-10 px-4" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <div className="max-w-4xl mx-auto space-y-6">
 
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-violet-400 font-mono tracking-widest mb-1">ADMIN</p>
@@ -597,6 +659,10 @@ export default function ProblemsListPage() {
           </div>
         </div>
 
+        {/* ── Pagination TOP ── */}
+        <Pagination />
+
+        {/* Problems list */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
@@ -615,74 +681,9 @@ export default function ProblemsListPage() {
           </div>
         )}
 
-        {/* ── Pagination ── */}
-        {totalPages > 1 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-4 space-y-3">
-            {/* Info + jump to page */}
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-zinc-500">
-                <span className="text-zinc-300 font-medium">{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)}</span>
-                <span className="text-zinc-600"> of </span>
-                <span className="text-zinc-300 font-medium">{total}</span>
-                <span className="text-zinc-600"> problems</span>
-              </p>
-              <div className="flex items-center gap-2 text-xs text-zinc-500">
-                <span>Go to page</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={totalPages}
-                  value={page + 1}
-                  onChange={e => {
-                    const v = parseInt(e.target.value) - 1;
-                    if (v >= 0 && v < totalPages) setPage(v);
-                  }}
-                  className="w-14 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-center text-zinc-200 outline-none focus:border-violet-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-                <span className="text-zinc-600">/ {totalPages}</span>
-              </div>
-            </div>
+        {/* ── Pagination BOTTOM ── */}
+        <Pagination />
 
-            {/* Page buttons */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {/* Prev */}
-              <button
-                onClick={() => setPage(p => p - 1)} disabled={page === 0}
-                className="px-3 py-1.5 rounded-lg border border-zinc-800 text-xs text-zinc-400 disabled:opacity-30 hover:border-zinc-600 hover:text-zinc-200 transition-colors"
-              >← Prev</button>
-
-              {/* Page number pills */}
-              {Array.from({ length: totalPages }, (_, i) => i).filter(i => {
-                // Show: first, last, current±2, and ellipsis markers
-                return i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 2;
-              }).reduce((acc: (number | string)[], i, idx, arr) => {
-                if (idx > 0 && (arr[idx - 1] as number) < i - 1) acc.push("…");
-                acc.push(i);
-                return acc;
-              }, []).map((item, idx) =>
-                item === "…" ? (
-                  <span key={`ellipsis-${idx}`} className="px-1 text-zinc-600 text-xs">…</span>
-                ) : (
-                  <button
-                    key={item}
-                    onClick={() => setPage(item as number)}
-                    className={`min-w-[32px] px-2 py-1.5 rounded-lg border text-xs font-mono transition-colors ${
-                      page === item
-                        ? "border-emerald-400 bg-emerald-400/10 text-violet-400 font-semibold"
-                        : "border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
-                    }`}
-                  >{(item as number) + 1}</button>
-                )
-              )}
-
-              {/* Next */}
-              <button
-                onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
-                className="px-3 py-1.5 rounded-lg border border-zinc-800 text-xs text-zinc-400 disabled:opacity-30 hover:border-zinc-600 hover:text-zinc-200 transition-colors"
-              >Next →</button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

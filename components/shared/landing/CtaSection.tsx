@@ -35,11 +35,20 @@ export default function CtaSection() {
             Create Free Account →
           </button>
         </Link>
-        <Link href="/problems">
-          <button className="border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 px-10 py-4 rounded-2xl text-base transition-colors">
-            Browse Problems
-          </button>
-        </Link>
+          if(!session) {(
+          <Link href="/sign-up">
+              <button className="border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 px-10 py-4 rounded-2xl text-base transition-colors">
+                  Browse Problems
+              </button>
+          </Link>)
+          }else{
+          (<Link href="/sign-up">
+                  <button className="border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 px-10 py-4 rounded-2xl text-base transition-colors">
+                      Browse Problems
+                  </button>
+              </Link>)
+      }
+
       </div>
     </section>
   );
