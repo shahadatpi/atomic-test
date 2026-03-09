@@ -4,12 +4,11 @@ import { useEffect, useState } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useRouter, usePathname } from "next/navigation"
 
-import Sidebar        from "./components/Sidebar"
-import Topbar         from "./components/Topbar"
-import OverviewTab    from "./components/OverviewTab"
-import PracticeTab    from "./components/PracticeTab"
-import ProgressTab    from "./components/ProgressTab"
-import AdminDashboard from "./components/AdminDashboard"  // ← new
+import Sidebar     from "./components/Sidebar"
+import Topbar      from "./components/Topbar"
+import OverviewTab from "./components/OverviewTab"
+import PracticeTab from "./components/PracticeTab"
+import ProgressTab from "./components/ProgressTab"
 
 import { useDashboardData } from "./hooks/useDashboardData"
 import { useStats }         from "./hooks/useStats"
@@ -24,6 +23,7 @@ export default function Page() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [greeting,    setGreeting]    = useState("Good morning")
 
+  // Filters (lifted here so PracticeTab and the hook share them)
   const [subjectFilter, setSubjectFilter] = useState("")
   const [topicFilter,   setTopicFilter]   = useState("")
   const [diffFilter,    setDiffFilter]    = useState("")
@@ -31,7 +31,7 @@ export default function Page() {
   useEffect(() => {
     const h = new Date().getHours()
     if (h >= 12 && h < 17) setGreeting("Good afternoon")
-    else if (h >= 17)      setGreeting("Good evening")
+    else if (h >= 17) setGreeting("Good evening")
   }, [])
 
   useEffect(() => {
@@ -40,58 +40,78 @@ export default function Page() {
 
   useEffect(() => { setSidebarOpen(false) }, [pathname])
 
-  const { subjects, topics, problems, attempts, loadingProblems, fetchProblems, saveAttempt } =
-    useDashboardData({ userId: session?.user?.id, subjectFilter, topicFilter, diffFilter })
+  const {
+    subjects,
+    topics,
+    problems,
+    attempts,
+    loadingProblems,
+    fetchProblems,
+    saveAttempt,
+  } = useDashboardData({
+    userId:        session?.user?.id,
+    subjectFilter,
+    topicFilter,
+    diffFilter,
+  })
 
-  const { totalAttempts, correctAttempts, accuracy, streak, weekActivity, weekDays, topicProgress } =
-    useStats(attempts, topics)
+  const {
+    totalAttempts,
+    correctAttempts,
+    accuracy,
+    streak,
+    weekActivity,
+    weekDays,
+    topicProgress,
+  } = useStats(attempts, topics)
 
-  // ── Loading state ────────────────────────────────────────────────────
   if (isPending || !session) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-          <p className="text-zinc-500 text-sm font-mono">Loading…</p>
+          <p className="text-muted-foreground/70 text-sm font-mono">Loading…</p>
         </div>
       </div>
     )
   }
 
-  // ── Admin view ───────────────────────────────────────────────────────
-  //
-  // If the user's role is "admin", show a completely different dashboard.
-  // session.user.role comes from the additionalFields we added to auth.ts
-  // and the role column we added to the database.
-  if ((session.user as any).role === "admin") {
-    return <AdminDashboard session={session} />
+  const firstName = session.user.name?.split(" ")[0] || "there"
+
+  const sidebarProps = {
+    session,
+    tab,
+    onTabChange: setTab,
+    onClose:     () => setSidebarOpen(false),
   }
 
-  // ── Student view (unchanged) ─────────────────────────────────────────
-  const firstName   = session.user.name?.split(" ")[0] || "there"
-  const sidebarProps = { session, tab, onTabChange: setTab, onClose: () => setSidebarOpen(false) }
-
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
         .line-clamp-2 { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
       `}</style>
 
       <div className="flex h-screen overflow-hidden">
-        <aside className="hidden lg:flex w-60 shrink-0 border-r border-zinc-800 flex-col bg-zinc-950">
+        {/* Desktop sidebar */}
+        <aside className="hidden lg:flex w-60 shrink-0 border-r border-border flex-col bg-background">
           <Sidebar {...sidebarProps} />
         </aside>
 
+        {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div className="lg:hidden fixed inset-0 z-40 flex">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-            <aside className="relative z-50 w-64 flex flex-col bg-zinc-950 border-r border-zinc-800 h-full">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <aside className="relative z-50 w-64 flex flex-col bg-background border-r border-border h-full">
               <Sidebar {...sidebarProps} />
             </aside>
           </div>
         )}
 
+        {/* Main content */}
         <main className="flex-1 overflow-y-auto">
           <Topbar
             greeting={greeting}
@@ -104,6 +124,7 @@ export default function Page() {
           <div className="px-4 md:px-8 py-6">
             {tab === "overview" && (
               <OverviewTab
+                userId={session.user.id}
                 correctAttempts={correctAttempts}
                 totalAttempts={totalAttempts}
                 streak={streak}
@@ -116,6 +137,7 @@ export default function Page() {
                 onProgressClick={() => setTab("progress")}
               />
             )}
+
             {tab === "practice" && (
               <PracticeTab
                 subjects={subjects}
@@ -133,6 +155,7 @@ export default function Page() {
                 onSaveAttempt={saveAttempt}
               />
             )}
+
             {tab === "progress" && (
               <ProgressTab
                 attempts={attempts}
