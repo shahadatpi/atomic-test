@@ -5,7 +5,7 @@ import { Row }     from "../ui/Row"
 
 const ADMIN_TOOLS = [
     { href: "/admin/problems",    icon: LayoutDashboard, label: "Manage Problems", desc: "Edit, delete, filter problems" },
-    { href: "/admin/add-problem", icon: Zap,             label: "Add New Problem", desc: "Create a new MCQ problem" },
+    { href: "/admin/add-problems", icon: Zap,             label: "Add New Problem", desc: "Create a new MCQ problems" },
     { href: "/admin/users",       icon: Users,           label: "Manage Users",    desc: "View users, change roles" },
 ]
 

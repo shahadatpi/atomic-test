@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import katex from "katex";
 import TikZRenderer from "@/components/math/TikZRenderer";
@@ -14,8 +14,18 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-type Difficulty = "easy" | "medium" | "hard";
-type Answer     = "a" | "b" | "c" | "d";
+type Difficulty   = "easy" | "medium" | "hard";
+type Answer       = "a" | "b" | "c" | "d";
+type ProblemType  = "board_mcq" | "admission_mcq" | "board_cq" | "admission_written" | "board_written" | "practice";
+
+const PROBLEM_TYPES: { value: ProblemType; label: string; short: string; color: string }[] = [
+  { value: "board_mcq",          label: "Board MCQ",          short: "Board MCQ",    color: "border-sky-400     bg-sky-400/10     text-sky-400"     },
+  { value: "admission_mcq",      label: "Admission MCQ",      short: "Adm. MCQ",    color: "border-violet-400  bg-violet-400/10  text-violet-400"  },
+  { value: "board_cq",           label: "Board CQ",           short: "Board CQ",     color: "border-emerald-400 bg-emerald-400/10 text-emerald-400" },
+  { value: "board_written",      label: "Board Written",      short: "Board WR",     color: "border-teal-400    bg-teal-400/10    text-teal-400"    },
+  { value: "admission_written",  label: "Admission Written",  short: "Adm. Written", color: "border-amber-400   bg-amber-400/10   text-amber-400"   },
+  { value: "practice",           label: "Practice",           short: "Practice",     color: "border-zinc-400    bg-zinc-400/10    text-zinc-400"    },
+];
 
 interface Subject  { id: string; name: string; }
 interface Topic    { id: string; name: string; subject_id: string; }
@@ -26,6 +36,7 @@ interface FormState {
   question: string; option_a: string; option_b: string; option_c: string; option_d: string;
   correct_answer: Answer; explanation: string; hint: string;
   difficulty: Difficulty; is_free: boolean; tags: string; source: string;
+  problem_type: ProblemType;
 }
 
 const EMPTY: FormState = {
@@ -33,6 +44,7 @@ const EMPTY: FormState = {
   option_a: "", option_b: "", option_c: "", option_d: "",
   correct_answer: "a", explanation: "", hint: "",
   difficulty: "medium", is_free: true, tags: "", source: "",
+  problem_type: "board_mcq",
 };
 
 function extractTikz(text: string): string {
@@ -147,6 +159,95 @@ function Select({ value, onChange, options, placeholder }: {
   );
 }
 
+/* ── ComboBox: search existing OR create new inline ─────────────────────── */
+interface ComboItem { id: string; name: string; }
+
+function ComboBox({ value, items, placeholder, disabled, creating, onSelect, onCreate }: {
+  value:       string;
+  items:       ComboItem[];
+  placeholder: string;
+  disabled?:   boolean;
+  creating?:   boolean;
+  onSelect:    (id: string) => void;
+  onCreate:    (name: string) => Promise<void>;
+}) {
+  const [query, setQuery] = useState("");
+  const [open,  setOpen]  = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fn = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, []);
+
+  const selected   = items.find(i => i.id === value);
+  const filtered   = query.trim() ? items.filter(i => i.name.toLowerCase().includes(query.toLowerCase())) : items;
+  const exactMatch = items.some(i => i.name.toLowerCase() === query.trim().toLowerCase());
+  const canCreate  = query.trim().length > 0 && !exactMatch;
+
+  const handleSelect = (id: string) => { onSelect(id); setQuery(""); setOpen(false); };
+  const handleCreate = async () => { if (!query.trim()) return; await onCreate(query.trim()); setQuery(""); setOpen(false); };
+
+  return (
+    <div ref={ref} className="relative">
+      <div
+        onClick={() => { if (!disabled) setOpen(o => !o); }}
+        className={`flex items-center gap-2 w-full bg-background border rounded-xl px-3 py-2.5 text-sm transition-all cursor-pointer ${
+          disabled ? "opacity-40 cursor-not-allowed border-border"
+          : open    ? "border-violet-500/60"
+          :           "border-border hover:border-muted-foreground"
+        }`}
+      >
+        {creating
+          ? <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin shrink-0" />
+          : <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        }
+        <span className={`flex-1 truncate ${selected ? "text-foreground" : "text-muted-foreground/50"}`}>
+          {selected ? selected.name : placeholder}
+        </span>
+        {selected && (
+          <button type="button" onClick={e => { e.stopPropagation(); onSelect(""); setQuery(""); }}
+            className="text-muted-foreground hover:text-red-400 transition-colors text-base leading-none shrink-0">×</button>
+        )}
+      </div>
+
+      {open && !disabled && (
+        <div className="absolute z-50 top-full mt-1 w-full bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-border">
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && canCreate) handleCreate(); if (e.key === "Escape") setOpen(false); }}
+              placeholder="Search or type to create…"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-violet-500/50"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 && !canCreate && (
+              <p className="px-4 py-3 text-xs text-muted-foreground italic">No matches</p>
+            )}
+            {filtered.map(item => (
+              <button key={item.id} type="button" onClick={() => handleSelect(item.id)}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-accent/50 ${
+                  item.id === value ? "text-violet-400 bg-violet-400/5" : "text-foreground"
+                }`}>
+                {item.name}{item.id === value && <span className="ml-2 text-xs">✓</span>}
+              </button>
+            ))}
+          </div>
+          {canCreate && (
+            <div className="border-t border-border p-2">
+              <button type="button" onClick={handleCreate}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 text-sm font-medium transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Create &ldquo;{query.trim()}&rdquo;
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProblemEditor() {
   const [form,      setForm]      = useState<FormState>(EMPTY);
   const [subjects,  setSubjects]  = useState<Subject[]>([]);
@@ -156,6 +257,11 @@ export default function ProblemEditor() {
   const [status,    setStatus]    = useState<"idle"|"success"|"error">("idle");
   const [errMsg,    setErrMsg]    = useState("");
   const [preview,   setPreview]   = useState(false);
+
+  // inline-create loading indicators
+  const [creatingSubject,  setCreatingSubject]  = useState(false);
+  const [creatingTopic,    setCreatingTopic]    = useState(false);
+  const [creatingSubtopic, setCreatingSubtopic] = useState(false);
 
   useEffect(() => {
     supabase.from("subjects").select("id, name").order("sort_order").then(({ data }) => setSubjects(data || []));
@@ -175,6 +281,35 @@ export default function ProblemEditor() {
 
   const set = <K extends keyof FormState>(key: K, val: FormState[K]) => setForm(f => ({ ...f, [key]: val }));
 
+  const createSubject = async (name: string) => {
+    setCreatingSubject(true);
+    const { error: insErr } = await supabase.from("subjects").insert({ name, sort_order: 0 });
+    if (insErr) { setCreatingSubject(false); setStatus("error"); setErrMsg(`Could not create subject: ${insErr.message}`); return; }
+    const { data } = await supabase.from("subjects").select("id, name").eq("name", name).order("sort_order", { ascending: false }).limit(1).single();
+    setCreatingSubject(false);
+    if (data) { setSubjects(s => [...s, data]); set("subject_id", data.id); }
+  };
+
+  const createTopic = async (name: string) => {
+    if (!form.subject_id) { setStatus("error"); setErrMsg("Select a subject first"); return; }
+    setCreatingTopic(true);
+    const { error: insErr } = await supabase.from("topics").insert({ name, subject_id: form.subject_id, sort_order: 0 });
+    if (insErr) { setCreatingTopic(false); setStatus("error"); setErrMsg(`Could not create topic: ${insErr.message}`); return; }
+    const { data } = await supabase.from("topics").select("id, name, subject_id").eq("name", name).eq("subject_id", form.subject_id).order("sort_order", { ascending: false }).limit(1).single();
+    setCreatingTopic(false);
+    if (data) { setTopics(t => [...t, data]); set("topic_id", data.id); }
+  };
+
+  const createSubtopic = async (name: string) => {
+    if (!form.topic_id) { setStatus("error"); setErrMsg("Select a topic first"); return; }
+    setCreatingSubtopic(true);
+    const { error: insErr } = await supabase.from("subtopics").insert({ name, topic_id: form.topic_id, sort_order: 0 });
+    if (insErr) { setCreatingSubtopic(false); setStatus("error"); setErrMsg(`Could not create subtopic: ${insErr.message}`); return; }
+    const { data } = await supabase.from("subtopics").select("id, name, topic_id").eq("name", name).eq("topic_id", form.topic_id).order("sort_order", { ascending: false }).limit(1).single();
+    setCreatingSubtopic(false);
+    if (data) { setSubtopics(s => [...s, data]); set("subtopic_id", data.id); }
+  };
+
   const handleSubmit = async () => {
     const required: (keyof FormState)[] = ["subject_id","topic_id","question","option_a","option_b","option_c","option_d"];
     for (const key of required) {
@@ -188,6 +323,7 @@ export default function ProblemEditor() {
       option_c: form.option_c, option_d: form.option_d, correct_answer: form.correct_answer,
       explanation: form.explanation || null, hint: form.hint || null,
       difficulty: form.difficulty, is_free: form.is_free,
+      problem_type: form.problem_type,
       tags: tags.length ? tags : null, source: form.source || null,
     });
     setLoading(false);
@@ -235,18 +371,36 @@ export default function ProblemEditor() {
           <p className="text-xs text-muted-foreground font-mono tracking-widest">CLASSIFICATION</p>
           <div className="grid grid-cols-3 gap-4">
             <Field label="Subject">
-              <Select value={form.subject_id} onChange={v => set("subject_id", v)}
-                options={subjects.map(s => ({ value: s.id, label: s.name }))} placeholder="Select subject" />
+              <ComboBox
+                value={form.subject_id}
+                items={subjects}
+                placeholder="Select or create…"
+                creating={creatingSubject}
+                onSelect={v => set("subject_id", v)}
+                onCreate={createSubject}
+              />
             </Field>
             <Field label="Topic">
-              <Select value={form.topic_id} onChange={v => set("topic_id", v)}
-                options={topics.map(t => ({ value: t.id, label: t.name }))}
-                placeholder={form.subject_id ? "Select topic" : "Select subject first"} />
+              <ComboBox
+                value={form.topic_id}
+                items={topics}
+                placeholder={form.subject_id ? "Select or create…" : "Pick subject first"}
+                disabled={!form.subject_id}
+                creating={creatingTopic}
+                onSelect={v => set("topic_id", v)}
+                onCreate={createTopic}
+              />
             </Field>
             <Field label="Subtopic" hint="optional">
-              <Select value={form.subtopic_id} onChange={v => set("subtopic_id", v)}
-                options={subtopics.map(s => ({ value: s.id, label: s.name }))}
-                placeholder={form.topic_id ? "Select subtopic" : "Select topic first"} />
+              <ComboBox
+                value={form.subtopic_id}
+                items={subtopics}
+                placeholder={form.topic_id ? "Select or create…" : "Pick topic first"}
+                disabled={!form.topic_id}
+                creating={creatingSubtopic}
+                onSelect={v => set("subtopic_id", v)}
+                onCreate={createSubtopic}
+              />
             </Field>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -263,6 +417,21 @@ export default function ProblemEditor() {
                 className="w-full bg-background border border-border focus:border-violet-500/60 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all" />
             </Field>
           </div>
+          <Field label="Problem Type">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {PROBLEM_TYPES.map(pt => (
+                <button key={pt.value} type="button" onClick={() => set("problem_type", pt.value)}
+                  className={`py-2 px-1 rounded-xl border text-xs font-semibold transition-all flex flex-col items-center gap-0.5 ${
+                    form.problem_type === pt.value
+                      ? pt.color + " scale-[1.03]"
+                      : "border-border text-muted-foreground hover:border-muted-foreground hover:bg-accent/50"
+                  }`}>
+                  {pt.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+
           <Field label="Tags" hint="comma separated">
             <div className="relative">
               <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -327,6 +496,10 @@ export default function ProblemEditor() {
           <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
             <p className="text-xs text-muted-foreground font-mono tracking-widest">PREVIEW</p>
             <div className="flex items-center gap-2 flex-wrap">
+              {(() => {
+                const pt = PROBLEM_TYPES.find(p => p.value === form.problem_type);
+                return pt ? <span className={`text-xs px-3 py-1 rounded-full border font-mono ${pt.color}`}>{pt.label}</span> : null;
+              })()}
               {form.difficulty && (
                 <span className={`text-xs px-3 py-1 rounded-full border font-mono ${
                   form.difficulty === "easy"   ? "text-emerald-400 border-emerald-400/30 bg-emerald-500/10" :

@@ -63,7 +63,7 @@ export default function PracticeTab({
         />
       </div>
 
-      {/* Right column: active problem */}
+      {/* Right column: active problems */}
       <div className="lg:col-span-2">
         <ProblemCard
           problem={activeProblem}

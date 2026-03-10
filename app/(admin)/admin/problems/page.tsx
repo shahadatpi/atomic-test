@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import MathText, { stripTikz } from "@/components/math/MathText";
 import {
-  Search, ChevronDown, Loader2,
+  Search, ChevronDown, Loader2, Plus,
   BookOpen, CheckCircle, Trash2, Pencil, X, Save, Tag, Eye, EyeOff,
 } from "lucide-react";
 
@@ -24,14 +24,26 @@ interface Problem {
   explanation:    string | null;
   difficulty:     string;
   is_free:        boolean;
+  problem_type:   string | null;
   tags:           string[] | null;
   source:         string | null;
   created_at:     string;
+  subject_id:     string;
+  topic_id:       string;
   subtopic_id:    string | null;
   subjects:       { name: string };
   topics:         { name: string };
   subtopics:      { name: string } | null;
 }
+
+const PROBLEM_TYPES = [
+  { value: "board_mcq",         label: "Board MCQ",         color: "border-sky-400     bg-sky-400/10     text-sky-400"     },
+  { value: "admission_mcq",     label: "Admission MCQ",     color: "border-violet-400  bg-violet-400/10  text-violet-400"  },
+  { value: "board_cq",          label: "Board CQ",          color: "border-emerald-400 bg-emerald-400/10 text-emerald-400" },
+  { value: "board_written",     label: "Board Written",     color: "border-teal-400    bg-teal-400/10    text-teal-400"    },
+  { value: "admission_written", label: "Admission Written", color: "border-amber-400   bg-amber-400/10   text-amber-400"   },
+  { value: "practice",          label: "Practice",          color: "border-zinc-400    bg-zinc-400/10    text-zinc-400"    },
+];
 
 interface Subject  { id: string; name: string; }
 interface Topic    { id: string; name: string; subject_id: string; }
@@ -135,6 +147,92 @@ function LaTeXField({
   );
 }
 
+/* ── ComboBox: search existing OR create new inline ─────────────────────── */
+interface ComboItem { id: string; name: string; }
+
+function ComboBox({ value, items, placeholder, disabled, creating, onSelect, onCreate }: {
+  value:       string;
+  items:       ComboItem[];
+  placeholder: string;
+  disabled?:   boolean;
+  creating?:   boolean;
+  onSelect:    (id: string) => void;
+  onCreate:    (name: string) => Promise<void>;
+}) {
+  const [query, setQuery] = useState("");
+  const [open,  setOpen]  = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fn = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, []);
+
+  const selected   = items.find(i => i.id === value);
+  const filtered   = query.trim() ? items.filter(i => i.name.toLowerCase().includes(query.toLowerCase())) : items;
+  const exactMatch = items.some(i => i.name.toLowerCase() === query.trim().toLowerCase());
+  const canCreate  = query.trim().length > 0 && !exactMatch;
+
+  const handleSelect = (id: string) => { onSelect(id); setQuery(""); setOpen(false); };
+  const handleCreate = async () => { if (!query.trim()) return; await onCreate(query.trim()); setQuery(""); setOpen(false); };
+
+  return (
+    <div ref={ref} className="relative">
+      <div onClick={() => { if (!disabled) setOpen(o => !o); }}
+        className={`flex items-center gap-2 w-full bg-background border rounded-xl px-3 py-2.5 text-sm transition-all cursor-pointer ${
+          disabled ? "opacity-40 cursor-not-allowed border-border"
+          : open    ? "border-violet-500/60"
+          :           "border-border hover:border-muted-foreground"
+        }`}>
+        {creating
+          ? <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin shrink-0" />
+          : <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        }
+        <span className={`flex-1 truncate ${selected ? "text-foreground" : "text-muted-foreground/50"}`}>
+          {selected ? selected.name : placeholder}
+        </span>
+        {selected && (
+          <button type="button" onClick={e => { e.stopPropagation(); onSelect(""); setQuery(""); }}
+            className="text-muted-foreground hover:text-red-400 transition-colors text-base leading-none shrink-0">×</button>
+        )}
+      </div>
+      {open && !disabled && (
+        <div className="absolute z-50 top-full mt-1 w-full bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-border">
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && canCreate) handleCreate(); if (e.key === "Escape") setOpen(false); }}
+              placeholder="Search or type to create…"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-violet-500/50"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 && !canCreate && (
+              <p className="px-4 py-3 text-xs text-muted-foreground italic">No matches</p>
+            )}
+            {filtered.map(item => (
+              <button key={item.id} type="button" onClick={() => handleSelect(item.id)}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-accent/50 ${
+                  item.id === value ? "text-violet-400 bg-violet-400/5" : "text-foreground"
+                }`}>
+                {item.name}{item.id === value && <span className="ml-2 text-xs">✓</span>}
+              </button>
+            ))}
+          </div>
+          {canCreate && (
+            <div className="border-t border-border p-2">
+              <button type="button" onClick={handleCreate}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 text-sm font-medium transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Create &ldquo;{query.trim()}&rdquo;
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ──────────────────────────────── Edit Modal ────────────────────────────── */
 
 function EditModal({ problem, onClose, onSave }: {
@@ -155,6 +253,68 @@ function EditModal({ problem, onClose, onSave }: {
   const [tags,          setTags]          = useState(problem.tags?.join(", ") ?? "");
   const [source,        setSource]        = useState(problem.source ?? "");
   const [isFree,        setIsFree]        = useState(problem.is_free);
+  const [problemType,   setProblemType]   = useState(problem.problem_type ?? "board_mcq");
+
+  // ── Classification ────────────────────────────────────────────────────
+  const [allSubjects,   setAllSubjects]   = useState<Subject[]>([]);
+  const [allTopics,     setAllTopics]     = useState<Topic[]>([]);
+  const [allSubtopics,  setAllSubtopics]  = useState<Subtopic[]>([]);
+  const [subjectId,     setSubjectId]     = useState(problem.subject_id ?? "");
+  const [topicId,       setTopicId]       = useState(problem.topic_id ?? "");
+  const [subtopicId,    setSubtopicId]    = useState(problem.subtopic_id ?? "");
+
+  const [creatingSubject,  setCreatingSubject]  = useState(false);
+  const [creatingTopic,    setCreatingTopic]    = useState(false);
+  const [creatingSubtopic, setCreatingSubtopic] = useState(false);
+
+  useEffect(() => {
+    supabase.from("subjects").select("id, name").order("sort_order")
+      .then(({ data }) => setAllSubjects(data || []));
+  }, []);
+
+  useEffect(() => {
+    if (!subjectId) { setAllTopics([]); return; }
+    supabase.from("topics").select("id, name, subject_id")
+      .eq("subject_id", subjectId).order("sort_order")
+      .then(({ data }) => setAllTopics(data || []));
+  }, [subjectId]);  // runs on mount (subjectId already set) AND on change
+
+  useEffect(() => {
+    if (!topicId) { setAllSubtopics([]); return; }
+    supabase.from("subtopics").select("id, name, topic_id")
+      .eq("topic_id", topicId).order("sort_order")
+      .then(({ data }) => setAllSubtopics(data || []));
+  }, [topicId]);  // runs on mount (topicId already set) AND on change
+
+  const createSubject = async (name: string) => {
+    setCreatingSubject(true);
+    const { error: insErr } = await supabase.from("subjects").insert({ name, slug: name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""), sort_order: 0 });
+    if (insErr) { setCreatingSubject(false); setError(`Could not create subject: ${insErr.message}`); return; }
+    const { data } = await supabase.from("subjects").select("id, name").eq("name", name).limit(1).single();
+    setCreatingSubject(false);
+    if (data) { setAllSubjects(s => [...s, data]); setSubjectId(data.id); setTopicId(""); setSubtopicId(""); }
+  };
+
+  const createTopic = async (name: string) => {
+    if (!subjectId) { setError("Select a subject first before creating a topic"); return; }
+    setCreatingTopic(true);
+    const { error: insErr } = await supabase.from("topics").insert({ name, subject_id: subjectId, slug: name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""), sort_order: 0 });
+    if (insErr) { setCreatingTopic(false); setError(`Could not create topic: ${insErr.message}`); return; }
+    const { data } = await supabase.from("topics").select("id, name, subject_id").eq("name", name).eq("subject_id", subjectId).limit(1).single();
+    setCreatingTopic(false);
+    if (data) { setAllTopics(t => [...t, data]); setTopicId(data.id); setSubtopicId(""); }
+  };
+
+  const createSubtopic = async (name: string) => {
+    if (!topicId) { setError("Select a topic first before creating a subtopic"); return; }
+    setCreatingSubtopic(true);
+    const { error: insErr } = await supabase.from("subtopics").insert({ name, topic_id: topicId, slug: name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""), sort_order: 0 });
+    if (insErr) { setCreatingSubtopic(false); setError(`Could not create subtopic: ${insErr.message}`); return; }
+    const { data } = await supabase.from("subtopics").select("id, name, topic_id").eq("name", name).eq("topic_id", topicId).limit(1).single();
+    setCreatingSubtopic(false);
+    if (data) { setAllSubtopics(s => [...s, data]); setSubtopicId(data.id); }
+  };
+
   const [saving,        setSaving]        = useState(false);
   const [error,         setError]         = useState("");
   const [pickerInst,    setPickerInst]    = useState("");
@@ -174,6 +334,7 @@ function EditModal({ problem, onClose, onSave }: {
   };
 
   const handleSave = async () => {
+    if (!subjectId || !topicId) { setError("Subject and Topic are required"); return; }
     if (!question.trim()) { setError("Question cannot be empty"); return; }
     if (!options.a.trim() || !options.b.trim() || !options.c.trim() || !options.d.trim()) {
       setError("All four options must be filled in"); return;
@@ -182,6 +343,9 @@ function EditModal({ problem, onClose, onSave }: {
     setError("");
     const tagsArr = tags.split(",").map(t => t.trim()).filter(Boolean);
     const { error: dbErr } = await supabase.from("problems").update({
+      subject_id:     subjectId,
+      topic_id:       topicId,
+      subtopic_id:    subtopicId || null,
       question:       question.trim(),
       option_a:       options.a.trim(),
       option_b:       options.b.trim(),
@@ -193,14 +357,20 @@ function EditModal({ problem, onClose, onSave }: {
       tags:           tagsArr.length ? tagsArr : null,
       source:         source.trim() || null,
       is_free:        isFree,
+      problem_type:   problemType,
       updated_at:     new Date().toISOString(),
     }).eq("id", problem.id);
     setSaving(false);
     if (dbErr) { setError(dbErr.message); return; }
     onSave({
+      subject_id: subjectId, topic_id: topicId, subtopic_id: subtopicId || null,
+      subjects:   allSubjects.find(s => s.id === subjectId) ? { name: allSubjects.find(s => s.id === subjectId)!.name } : problem.subjects,
+      topics:     allTopics.find(t => t.id === topicId)     ? { name: allTopics.find(t => t.id === topicId)!.name }     : problem.topics,
+      subtopics:  allSubtopics.find(s => s.id === subtopicId) ? { name: allSubtopics.find(s => s.id === subtopicId)!.name } : null,
       question, explanation: explanation || null, source: source || null,
       option_a: options.a, option_b: options.b, option_c: options.c, option_d: options.d,
       correct_answer: correctAnswer, difficulty, is_free: isFree,
+      problem_type: problemType,
       tags: tagsArr.length ? tagsArr : null,
     });
     onClose();
@@ -223,6 +393,51 @@ function EditModal({ problem, onClose, onSave }: {
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+
+          {/* Classification */}
+          <div className="space-y-3">
+            <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Classification</p>
+            <div className="grid grid-cols-3 gap-3">
+              {/* Subject */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Subject</p>
+                <ComboBox
+                  value={subjectId}
+                  items={allSubjects}
+                  placeholder="Select or create…"
+                  creating={creatingSubject}
+                  onSelect={v => { setSubjectId(v); setTopicId(""); setSubtopicId(""); }}
+                  onCreate={createSubject}
+                />
+              </div>
+              {/* Topic */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Topic</p>
+                <ComboBox
+                  value={topicId}
+                  items={allTopics}
+                  placeholder={subjectId ? "Select or create…" : "Pick subject first"}
+                  disabled={!subjectId}
+                  creating={creatingTopic}
+                  onSelect={v => { setTopicId(v); setSubtopicId(""); }}
+                  onCreate={createTopic}
+                />
+              </div>
+              {/* Subtopic */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Subtopic <span className="opacity-50">(optional)</span></p>
+                <ComboBox
+                  value={subtopicId}
+                  items={allSubtopics}
+                  placeholder={topicId ? "Select or create…" : "Pick topic first"}
+                  disabled={!topicId}
+                  creating={creatingSubtopic}
+                  onSelect={setSubtopicId}
+                  onCreate={createSubtopic}
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Question */}
           <LaTeXField
@@ -309,6 +524,23 @@ function EditModal({ problem, onClose, onSave }: {
                     }`}>{label}</button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Problem Type */}
+          <div>
+            <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">Problem Type</p>
+            <div className="grid grid-cols-3 gap-2">
+              {PROBLEM_TYPES.map(pt => (
+                <button key={pt.value} type="button" onClick={() => setProblemType(pt.value)}
+                  className={`py-2 px-2 rounded-xl border text-xs font-semibold transition-all ${
+                    problemType === pt.value
+                      ? pt.color + " scale-[1.02]"
+                      : "border-border text-muted-foreground hover:border-muted-foreground hover:bg-accent/50"
+                  }`}>
+                  {pt.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -459,6 +691,7 @@ function ProblemCard({ problem: init, onDelete, number }: {
     <>
       {editing && (
         <EditModal
+          key={problem.id + "-" + Date.now()}
           problem={problem}
           onClose={() => setEditing(false)}
           onSave={updated => setProblem(p => ({ ...p, ...updated }))}
@@ -479,6 +712,10 @@ function ProblemCard({ problem: init, onDelete, number }: {
                   {problem.subtopics?.name && <> · <span className="text-muted-foreground/70">{problem.subtopics.name}</span></>}
                 </span>
                 <DiffBadge level={problem.difficulty} />
+                {(() => {
+                  const pt = PROBLEM_TYPES.find(p => p.value === problem.problem_type);
+                  return pt ? <span className={`text-xs px-2.5 py-0.5 rounded-full border font-mono ${pt.color}`}>{pt.label}</span> : null;
+                })()}
                 <span className={`text-xs px-2.5 py-0.5 rounded-full border font-mono ${
                   problem.is_free
                     ? "text-sky-400 border-sky-400/30 bg-sky-400/10"
@@ -587,6 +824,7 @@ export default function ProblemsListPage() {
   const [subtopicFilter, setSubtopicFilter] = useState("");
   const [diffFilter,     setDiffFilter]     = useState("");
   const [freeFilter,     setFreeFilter]     = useState("");
+  const [typeFilter,     setTypeFilter]     = useState("");
   const [total,          setTotal]          = useState(0);
   const [page,           setPage]           = useState(0);
   const PAGE_SIZE = 20;
@@ -603,14 +841,15 @@ export default function ProblemsListPage() {
     setSubtopicFilter("");
   }, [topicFilter]);
 
-  useEffect(() => { fetchProblems(); }, [search, subjectFilter, topicFilter, subtopicFilter, diffFilter, freeFilter, page]);
+  useEffect(() => { fetchProblems(); }, [search, subjectFilter, topicFilter, subtopicFilter, diffFilter, freeFilter, typeFilter, page]);
 
   const fetchProblems = async () => {
     setLoading(true);
     let q = supabase
       .from("problems")
       .select(`id, question, option_a, option_b, option_c, option_d, correct_answer, explanation,
-               difficulty, is_free, tags, source, created_at, subtopic_id,
+               difficulty, is_free, problem_type, tags, source, created_at,
+               subject_id, topic_id, subtopic_id,
                subjects(name), topics(name), subtopics(name)`, { count: "exact" })
       .order("created_at", { ascending: false })
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
@@ -618,8 +857,9 @@ export default function ProblemsListPage() {
     if (subjectFilter)  q = q.eq("subject_id",  subjectFilter);
     if (topicFilter)    q = q.eq("topic_id",    topicFilter);
     if (subtopicFilter) q = q.eq("subtopic_id", subtopicFilter);
-    if (diffFilter)     q = q.eq("difficulty",  diffFilter);
-    if (freeFilter)     q = q.eq("is_free",     freeFilter === "free");
+    if (diffFilter)     q = q.eq("difficulty",    diffFilter);
+    if (freeFilter)     q = q.eq("is_free",       freeFilter === "free");
+    if (typeFilter)     q = q.eq("problem_type",  typeFilter);
     if (search)         q = q.ilike("question", `%${search}%`);
 
     const { data, count, error } = await q;
@@ -740,6 +980,7 @@ export default function ProblemsListPage() {
             {[
               { val: diffFilter, set: (v: string) => { setDiffFilter(v); setPage(0); }, opts: [["easy","Easy"],["medium","Medium"],["hard","Hard"]] as [string,string][], placeholder: "All difficulties" },
               { val: freeFilter, set: (v: string) => { setFreeFilter(v); setPage(0); }, opts: [["free","Free only"],["pro","Pro only"]] as [string,string][],               placeholder: "Free + Pro" },
+              { val: typeFilter, set: (v: string) => { setTypeFilter(v); setPage(0); }, opts: PROBLEM_TYPES.map(pt => [pt.value, pt.label]) as [string,string][], placeholder: "All types" },
             ].map((sel, i) => (
               <div key={i} className="relative">
                 <select value={sel.val} onChange={e => sel.set(e.target.value)}
@@ -751,10 +992,10 @@ export default function ProblemsListPage() {
               </div>
             ))}
 
-            {(subjectFilter || topicFilter || subtopicFilter || diffFilter || freeFilter || search) && (
+            {(subjectFilter || topicFilter || subtopicFilter || diffFilter || freeFilter || typeFilter || search) && (
               <button onClick={() => {
                 setSearch(""); setSubjectFilter(""); setTopicFilter("");
-                setSubtopicFilter(""); setDiffFilter(""); setFreeFilter(""); setPage(0);
+                setSubtopicFilter(""); setDiffFilter(""); setFreeFilter(""); setTypeFilter(""); setPage(0);
               }} className="text-xs text-muted-foreground hover:text-foreground px-3 py-2 rounded-xl hover:bg-accent transition-colors">
                 Clear filters
               </button>

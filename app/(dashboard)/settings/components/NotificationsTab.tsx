@@ -13,7 +13,7 @@ const STUDENT_ITEMS: NotifItem[] = [
 
 const ADMIN_ITEMS: NotifItem[] = [
     { key: "dailyReminder", label: "New user signups",      desc: "Get notified when new users register" },
-    { key: "newProblems",   label: "Problem import alerts",  desc: "When bulk problem imports complete" },
+    { key: "newProblems",   label: "Problem import alerts",  desc: "When bulk problems imports complete" },
     { key: "streakAlert",   label: "Platform error alerts",  desc: "Critical errors on the platform" },
     { key: "weeklyReport",  label: "Weekly platform report", desc: "Summary of platform activity" },
     { key: "promotional",   label: "Promotional emails",     desc: "Updates about new features" },

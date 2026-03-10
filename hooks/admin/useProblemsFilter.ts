@@ -75,7 +75,7 @@ export function useProblemsFilter() {
 
   // ── Delete ─────────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this problem? This cannot be undone.")) return
+    if (!confirm("Delete this problems? This cannot be undone.")) return
     const { error } = await supabase.from("problems").delete().eq("id", id)
     if (!error) setProblems(ps => ps.filter(p => p.id !== id))
   }

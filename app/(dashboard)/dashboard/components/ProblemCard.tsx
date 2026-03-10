@@ -24,7 +24,7 @@ export default function ProblemCard({
   const [showHint,  setShowHint]  = useState(false)
   const [saving,    setSaving]    = useState(false)
 
-  // ✅ Reset state when the problem changes
+  // ✅ Reset state when the problems changes
   useEffect(() => {
     setSelected(null)
     setRevealed(false)

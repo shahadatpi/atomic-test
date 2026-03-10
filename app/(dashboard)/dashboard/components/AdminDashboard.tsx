@@ -250,7 +250,7 @@ function AdminSidebar({ session, onClose }: { session: any; onClose: () => void 
   const links = [
     { href: "/dashboard",         icon: BarChart2,  label: "Overview"       },
     { href: "/admin/problems",    icon: FileText,   label: "Problems"       },
-    { href: "/admin/add-problem", icon: Plus,       label: "Add Problem"    },
+    { href: "/admin/add-problems", icon: Plus,       label: "Add Problem"    },
     { href: "/admin/users",       icon: Users,      label: "Users"          },
     { href: "/settings",          icon: Settings,   label: "Settings"       },
   ]
