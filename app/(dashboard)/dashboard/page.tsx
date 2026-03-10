@@ -14,8 +14,9 @@ import { useDashboardData } from "./hooks/useDashboardData"
 import { useStats }         from "./hooks/useStats"
 import type { DashboardTab } from "./types"
 
-import ExamPage     from "../exam/page"
-import SettingsTab  from "./components/SettingsTab"
+// ExamPage is rendered inline (no page navigation) — import its root component
+import ExamRoot    from "../exam/page"
+import SettingsTab from "./components/SettingsTab"
 
 function DashboardInner() {
   const { data: session, isPending } = useSession()
@@ -167,7 +168,7 @@ function DashboardInner() {
           )}
 
           {/* Exam and Settings rendered inline — no page navigation */}
-          {tab === "exam"     && <ExamPage />}
+          {tab === "exam"     && <ExamRoot />}
           {tab === "settings" && <SettingsTab />}
         </main>
       </div>
