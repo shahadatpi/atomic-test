@@ -17,7 +17,7 @@ export const SIMPLE_LINKS = [
 
 export const USER_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Profile",   href: "/settings"   },
+  { label: "Profile",   href: "/settings/profile" },
   { label: "Settings",  href: "/settings"  },
 ] as const;
 

@@ -49,14 +49,14 @@ export default function StatsGrid({
       {cards.map(({ label, value, change, icon: Icon, color }) => (
         <div
           key={label}
-          className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-5
+          className="bg-card border border-border rounded-xl p-4 md:p-5
                      hover:-translate-y-0.5 transition-transform"
         >
           <div className="flex items-start justify-between mb-3">
             <Icon className={`w-4 h-4 ${color}`} />
           </div>
-          <p className="text-2xl md:text-3xl font-semibold text-white mb-0.5">{value}</p>
-          <p className="text-xs text-zinc-500">{label}</p>
+          <p className="text-2xl md:text-3xl font-semibold text-foreground mb-0.5">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
           <p className={`text-xs mt-2 ${color}`}>{change}</p>
         </div>
       ))}

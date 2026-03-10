@@ -4,10 +4,8 @@ import type { Attempt } from "../types"
 
 interface AttemptsTableProps {
   attempts: Attempt[]
-  /** Limit rows shown (undefined = show all) */
   limit?: number
   onPracticeClick?: () => void
-  /** Show "Your Answer" column (Progress tab) */
   showAnswer?: boolean
 }
 
@@ -22,12 +20,9 @@ export default function AttemptsTable({
   if (attempts.length === 0) {
     return (
       <div className="px-5 py-8 text-center">
-        <p className="text-zinc-600 text-sm">No attempts yet.</p>
+        <p className="text-muted-foreground text-sm">No attempts yet.</p>
         {onPracticeClick && (
-          <button
-            onClick={onPracticeClick}
-            className="mt-2 text-emerald-400 text-sm hover:underline"
-          >
+          <button onClick={onPracticeClick} className="mt-2 text-emerald-400 text-sm hover:underline">
             Start practicing →
           </button>
         )}
@@ -43,9 +38,9 @@ export default function AttemptsTable({
     <div className="overflow-x-auto">
       <table className="w-full min-w-[500px]">
         <thead>
-          <tr className="border-b border-zinc-800">
+          <tr className="border-b border-border">
             {headers.map(h => (
-              <th key={h} className="px-5 py-3 text-left text-xs text-zinc-600 font-medium">
+              <th key={h} className="px-5 py-3 text-left text-xs text-muted-foreground font-medium">
                 {h}
               </th>
             ))}
@@ -55,35 +50,23 @@ export default function AttemptsTable({
           {rows.map((a, i) => {
             const p = a.problems as any
             return (
-              <tr
-                key={i}
-                className="border-b border-zinc-800/50 last:border-0 hover:bg-white/[0.02] transition-colors"
-              >
-                {/* Problem */}
-                <td className="px-5 py-3.5 text-sm text-zinc-200 max-w-[200px] truncate">
+              <tr key={i} className="border-b border-border/50 last:border-0 hover:bg-accent/30 transition-colors">
+                <td className="px-5 py-3.5 text-sm text-foreground max-w-[200px] truncate">
                   {p?.question?.replace(/\$[^$]*\$/g, "[math]").slice(0, 50)}…
                 </td>
-
-                {/* Subject */}
                 <td className="px-5 py-3.5">
-                  <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-md">
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
                     {p?.subjects?.name || "—"}
                   </span>
                 </td>
-
-                {/* Difficulty */}
                 <td className="px-5 py-3.5">
                   <DifficultyBadge difficulty={p?.difficulty || ""} />
                 </td>
-
-                {/* Your Answer (Progress tab only) */}
                 {showAnswer && (
-                  <td className="px-5 py-3.5 text-xs text-zinc-400 font-mono uppercase">
+                  <td className="px-5 py-3.5 text-xs text-muted-foreground font-mono uppercase">
                     {a.selected_answer}
                   </td>
                 )}
-
-                {/* Result */}
                 <td className="px-5 py-3.5">
                   {a.is_correct ? (
                     <span className="flex items-center gap-1.5 text-xs text-emerald-400">
@@ -95,9 +78,7 @@ export default function AttemptsTable({
                     </span>
                   )}
                 </td>
-
-                {/* Date */}
-                <td className="px-5 py-3.5 text-xs text-zinc-600 font-mono">
+                <td className="px-5 py-3.5 text-xs text-muted-foreground font-mono">
                   {new Date(a.created_at).toLocaleDateString()}
                 </td>
               </tr>
