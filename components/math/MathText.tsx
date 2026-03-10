@@ -181,10 +181,8 @@ export default function MathText({ text, className = "" }: { text: string; class
     <span className={className} style={{ display: "block" }}>
       {segments.map((seg, i) => {
         const hasTikz = seg.includes("%%TIKZ:")
-        // TikZ segments: inline so consecutive figures sit on the same line
-        // Plain text segments: block so they stack normally
         return (
-          <span key={i} style={{ display: hasTikz ? "inline" : "block" }}>
+          <span key={i} style={{ display: "block", textAlign: hasTikz ? "center" : undefined }}>
             {seg.trim() === "" ? <br /> : renderSegment(seg, i)}
           </span>
         )

@@ -47,8 +47,7 @@ export default function CtaSection() {
                       Browse Problems
                   </button>
               </Link>)
-      }
-
+            }
       </div>
     </section>
   );

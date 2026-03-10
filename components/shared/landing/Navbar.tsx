@@ -126,11 +126,11 @@ function UserDropdown({ name, email, onClose, onSignOut }: {
 
       <div className="p-2 space-y-0.5">
         {[
-          { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-          { href: "/settings",   label: "Profile",   icon: User            },
-          { href: "/settings",  label: "Settings",  icon: Settings        },
+          { href: "/dashboard",            label: "Dashboard", icon: LayoutDashboard },
+          { href: "/dashboard?tab=settings", label: "Profile",   icon: User            },
+          { href: "/dashboard?tab=settings", label: "Settings",  icon: Settings        },
         ].map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} onClick={onClose}>
+          <Link key={label} href={href} onClick={onClose}>
             <div className="drop-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-zinc-300">
               <Icon className="w-4 h-4 text-zinc-500" /> {label}
             </div>
@@ -216,12 +216,12 @@ function MobileMenu({ session, avatarLetter, userName, userEmail, onSignOut }: {
             </>
           ) : (
             <div className="flex flex-col gap-2">
-              <Link href="/login">
+              <Link href="/api/login">
                 <button className="w-full border border-zinc-700 text-zinc-300 text-sm py-3 rounded-xl hover:border-zinc-500 transition-colors">
                   Sign in
                 </button>
               </Link>
-              <Link href="/sign-up">
+              <Link href="/api/sign-up">
                 <button className="w-full bg-emerald-400 text-zinc-950 font-semibold text-sm py-3 rounded-xl">
                   Get Started →
                 </button>

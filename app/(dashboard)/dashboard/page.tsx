@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSession } from "@/lib/auth-client"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
 import Sidebar     from "./components/Sidebar"
 import Topbar      from "./components/Topbar"
@@ -17,12 +17,15 @@ import type { DashboardTab } from "./types"
 import ExamPage     from "../exam/page"
 import SettingsTab  from "./components/SettingsTab"
 
-export default function Page() {
+function DashboardInner() {
   const { data: session, isPending } = useSession()
-  const router   = useRouter()
-  const pathname = usePathname()
+  const router      = useRouter()
+  const pathname    = usePathname()
+  const searchParams = useSearchParams()
 
-  const [tab,         setTab]         = useState<DashboardTab>("overview")
+  const [tab,         setTab]         = useState<DashboardTab>(
+    (searchParams.get("tab") as DashboardTab) || "overview"
+  )
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [greeting,    setGreeting]    = useState("Good morning")
 
@@ -169,5 +172,17 @@ export default function Page() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <DashboardInner />
+    </Suspense>
   )
 }

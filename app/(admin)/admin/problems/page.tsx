@@ -37,7 +37,47 @@ interface Subject  { id: string; name: string; }
 interface Topic    { id: string; name: string; subject_id: string; }
 interface Subtopic { id: string; name: string; topic_id: string; }
 
-const STANDARD_TAGS = ["Board", "DU", "BUET", "CKRUET", "SUST", "Medical"];
+const INSTITUTES = [
+  { key: "DU",     label: "DU",     color: "violet" },
+  { key: "BUET",   label: "BUET",   color: "sky"    },
+  { key: "CUET",   label: "CUET",   color: "amber"  },
+  { key: "RUET",   label: "RUET",   color: "emerald"},
+  { key: "KUET",   label: "KUET",   color: "rose"   },
+  { key: "SUST",   label: "SUST",   color: "indigo" },
+  { key: "CKRUET", label: "CKRUET", color: "teal"   },
+  { key: "Medical",label: "Medical",color: "pink"   },
+  { key: "Board",  label: "Board",  color: "orange" },
+  { key: "DB",     label: "DB",     color: "cyan"   },
+];
+
+const INST_COLORS: Record<string, string> = {
+  violet:  "border-violet-400  bg-violet-400/10  text-violet-300",
+  sky:     "border-sky-400     bg-sky-400/10     text-sky-300",
+  amber:   "border-amber-400   bg-amber-400/10   text-amber-300",
+  emerald: "border-emerald-400 bg-emerald-400/10 text-emerald-300",
+  rose:    "border-rose-400    bg-rose-400/10    text-rose-300",
+  indigo:  "border-indigo-400  bg-indigo-400/10  text-indigo-300",
+  teal:    "border-teal-400    bg-teal-400/10    text-teal-300",
+  pink:    "border-pink-400    bg-pink-400/10    text-pink-300",
+  orange:  "border-orange-400  bg-orange-400/10  text-orange-300",
+  cyan:    "border-cyan-400    bg-cyan-400/10    text-cyan-300",
+};
+
+// Generate academic years: current-4 to current+1
+function getYears(): string[] {
+  const y = new Date().getFullYear();
+  return Array.from({ length: 30 }, (_, i) => {
+    const start = y - 5 + i;
+    return `${start}-${String(start + 1).slice(-2)}`;
+  }).reverse();
+}
+const YEARS = getYears();
+
+// Parse / build "INST: YEAR" tag format
+function parseInstTag(tag: string): { inst: string; year: string } | null {
+  const m = tag.match(/^([^:]+):\s*(.+)$/);
+  return m ? { inst: m[1].trim(), year: m[2].trim() } : null;
+}
 
 /* ─────────────────────── LaTeX field with preview toggle ───────────────── */
 
@@ -117,12 +157,20 @@ function EditModal({ problem, onClose, onSave }: {
   const [isFree,        setIsFree]        = useState(problem.is_free);
   const [saving,        setSaving]        = useState(false);
   const [error,         setError]         = useState("");
+  const [pickerInst,    setPickerInst]    = useState("");
+  const [pickerYear,    setPickerYear]    = useState(YEARS[1]);
 
   const tagList = tags.split(",").map(t => t.trim()).filter(Boolean);
 
-  const toggleStdTag = (tag: string) => {
-    const cur = tags.split(",").map(t => t.trim()).filter(Boolean);
-    setTags((cur.includes(tag) ? cur.filter(t => t !== tag) : [...cur, tag]).join(", "));
+  const removeTag = (tag: string) => {
+    setTags(tagList.filter(t => t !== tag).join(", "));
+  };
+
+  const addInstTag = (inst: string, year: string) => {
+    const newTag = `${inst}: ${year}`;
+    if (!tagList.includes(newTag)) {
+      setTags([...tagList, newTag].join(", "));
+    }
   };
 
   const handleSave = async () => {
@@ -264,40 +312,91 @@ function EditModal({ problem, onClose, onSave }: {
             </div>
           </div>
 
-          {/* Standard tags */}
-          <div>
-            <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2">Exam Standard Tags</p>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {STANDARD_TAGS.map(std => {
-                const active = tagList.includes(std);
-                return (
-                  <button key={std} type="button" onClick={() => toggleStdTag(std)}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                      active
-                        ? "bg-violet-400/10 border-violet-400 text-violet-300"
-                        : "bg-zinc-900 border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
-                    }`}>
-                    {active ? "✓ " : ""}{std}
-                  </button>
-                );
-              })}
+          {/* Previous Year Tags */}
+          <div className="space-y-3">
+            <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Previous Year Tags</p>
+
+            {/* Institute row */}
+            <div>
+              <p className="text-xs text-zinc-600 mb-1.5">Select Institute</p>
+              <div className="flex flex-wrap gap-1.5">
+                {INSTITUTES.map(({ key, label, color }) => {
+                  const isSelected = pickerInst === key;
+                  return (
+                    <button key={key} type="button"
+                      onClick={() => setPickerInst(isSelected ? "" : key)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        isSelected
+                          ? INST_COLORS[color]
+                          : "border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300 bg-zinc-900"
+                      }`}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="relative">
-              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
-              <input value={tags} onChange={e => setTags(e.target.value)}
-                placeholder="Board, BUET, chain-rule, oscillation…"
-                className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
-              />
+
+            {/* Year row + Add button — only shown when institute selected */}
+            {pickerInst && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xs text-zinc-600">Year:</p>
+                <div className="flex flex-wrap gap-1.5 flex-1">
+                  {YEARS.map(yr => (
+                    <button key={yr} type="button"
+                      onClick={() => setPickerYear(yr)}
+                      className={`text-xs px-2.5 py-1 rounded-lg border font-mono transition-all ${
+                        pickerYear === yr
+                          ? "border-violet-400 bg-violet-400/10 text-violet-300"
+                          : "border-zinc-800 text-zinc-500 hover:border-zinc-600 bg-zinc-900"
+                      }`}>
+                      {yr}
+                    </button>
+                  ))}
+                </div>
+                <button type="button"
+                  onClick={() => { addInstTag(pickerInst, pickerYear); setPickerInst(""); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500 hover:bg-violet-400 text-white text-xs font-semibold transition-all shrink-0">
+                  <Tag className="w-3 h-3" /> Add {pickerInst}: {pickerYear}
+                </button>
+              </div>
+            )}
+
+            {/* Custom tag input */}
+            <div>
+              <p className="text-xs text-zinc-600 mb-1.5">Custom tags (comma-separated)</p>
+              <div className="relative">
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+                <input value={tags} onChange={e => setTags(e.target.value)}
+                  placeholder="e.g. oscillation, chain-rule, thermodynamics…"
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all"
+                />
+              </div>
             </div>
+
+            {/* Applied tags */}
             {tagList.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {tagList.map(tag => (
-                  <span key={tag} className={`text-xs px-2.5 py-0.5 rounded-full border font-mono ${
-                    STANDARD_TAGS.includes(tag)
-                      ? "bg-violet-400/10 border-violet-400/30 text-violet-300"
-                      : "bg-zinc-800 border-zinc-700 text-zinc-400"
-                  }`}>{tag}</span>
-                ))}
+              <div>
+                <p className="text-xs text-zinc-600 mb-1.5">Applied tags</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {tagList.map(tag => {
+                    const parsed = parseInstTag(tag);
+                    const instColor = parsed
+                      ? INST_COLORS[INSTITUTES.find(i => i.key === parsed.inst)?.color ?? ""] ?? ""
+                      : "";
+                    return (
+                      <span key={tag} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-mono ${
+                        instColor || "bg-zinc-800 border-zinc-700 text-zinc-400"
+                      }`}>
+                        {tag}
+                        <button type="button" onClick={() => removeTag(tag)}
+                          className="text-zinc-500 hover:text-red-400 transition-colors leading-none">
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -396,13 +495,17 @@ function ProblemCard({ problem: init, onDelete, number }: {
 
               {problem.tags?.length ? (
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  {problem.tags.map(tag => (
-                    <span key={tag} className={`text-xs px-2 py-0.5 rounded-full border font-mono ${
-                      STANDARD_TAGS.includes(tag)
-                        ? "bg-violet-400/10 border-violet-400/30 text-violet-300"
-                        : "bg-zinc-800 border-zinc-700 text-zinc-500"
-                    }`}>{tag}</span>
-                  ))}
+                  {problem.tags.map(tag => {
+                    const parsed = parseInstTag(tag);
+                    const instColor = parsed
+                      ? INST_COLORS[INSTITUTES.find(i => i.key === parsed.inst)?.color ?? ""] ?? ""
+                      : "";
+                    return (
+                      <span key={tag} className={`text-xs px-2 py-0.5 rounded-full border font-mono ${
+                        instColor || "bg-zinc-800 border-zinc-700 text-zinc-500"
+                      }`}>{tag}</span>
+                    );
+                  })}
                 </div>
               ) : null}
             </div>

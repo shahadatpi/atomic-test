@@ -81,7 +81,7 @@ export default function TikZRenderer({ code, caption }: Props) {
   }
 
   if (loading) return (
-    <figure className="inline-flex flex-col items-center my-2 mx-1 align-top">
+    <figure className="flex flex-col items-center justify-center my-4 w-full">
       <div className="flex items-center gap-2 p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
         <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
         <span className="text-xs text-zinc-500 font-mono">
@@ -134,15 +134,15 @@ export default function TikZRenderer({ code, caption }: Props) {
   )
 
   return (
-    <figure className="inline-flex flex-col items-center my-2 mx-1 align-top">
+    <figure className="flex flex-col items-center justify-center my-4 w-full">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url!}
         alt={caption ?? "TikZ diagram"}
-        className="rounded-lg bg-white p-2 border border-zinc-800 max-h-52"
+        className="rounded-lg bg-white p-2 border border-zinc-800 max-h-64"
         style={{ imageRendering: "crisp-edges", width: "auto", maxWidth: "100%" }}
       />
-      {caption && <figcaption className="text-xs text-zinc-600 mt-1 italic text-center">{caption}</figcaption>}
+      {caption && <figcaption className="text-xs text-zinc-600 mt-2 italic text-center">{caption}</figcaption>}
     </figure>
   )
 }
