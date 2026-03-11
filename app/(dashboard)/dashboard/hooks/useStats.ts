@@ -11,7 +11,7 @@ export function useStats(attempts: Attempt[], topics: Topic[]) {
       ? Math.round((correctAttempts / totalAttempts) * 100)
       : 0
 
-    // Streak: consecutive days ending today
+    // ── Streak: consecutive days ending today ─────────────────────────
     const streak = (() => {
       if (!attempts.length) return 0
       const days  = new Set(attempts.map(a => new Date(a.created_at).toDateString()))
@@ -24,7 +24,7 @@ export function useStats(attempts: Attempt[], topics: Topic[]) {
       return count
     })()
 
-    // Last 7 days activity
+    // ── Last 7 days activity ──────────────────────────────────────────
     const weekActivity = Array.from({ length: 7 }, (_, i) => {
       const d = new Date()
       d.setDate(d.getDate() - (6 - i))
@@ -33,20 +33,43 @@ export function useStats(attempts: Attempt[], topics: Topic[]) {
       ).length
     })
 
-    // Mon-Sun labels aligned to today
-    const allDays  = ["M", "T", "W", "T", "F", "S", "S"]
-    const weekDays = [
-      ...allDays.slice(new Date().getDay()),
-      ...allDays.slice(0, new Date().getDay()),
-    ].slice(-7)
-
-    // Per-topic progress (first 5 topics)
-    const topicProgress = topics.slice(0, 5).map(t => {
-      const ta     = attempts.filter(a => (a.problems as any)?.topics?.name === t.name)
-      const solved = ta.filter(a => a.is_correct).length
-      return { name: t.name, solved, total: Math.max(solved + 5, 10) }
+    // Day labels aligned to today (rolling 7-day window)
+    const allDays = ["S", "M", "T", "W", "T", "F", "S"]
+    const today   = new Date().getDay() // 0=Sun
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const dayIndex = (today - 6 + i + 7) % 7
+      return allDays[dayIndex]
     })
 
-    return { totalAttempts, correctAttempts, accuracy, streak, weekActivity, weekDays, topicProgress }
+    // ── Topic progress — only topics the user actually attempted ──────
+    // Build a map: topicName → { solved, total attempted }
+    const topicMap = new Map<string, { solved: number; total: number }>()
+
+    for (const attempt of attempts) {
+      // Supabase join: attempt.problems.topics.name
+      const topicName = (attempt.problems as any)?.topics?.name
+      if (!topicName) continue
+
+      const entry = topicMap.get(topicName) ?? { solved: 0, total: 0 }
+      entry.total++
+      if (attempt.is_correct) entry.solved++
+      topicMap.set(topicName, entry)
+    }
+
+    // Sort by most attempted, take top 6
+    const topicProgress = Array.from(topicMap.entries())
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 6)
+      .map(([name, { solved, total }]) => ({ name, solved, total }))
+
+    return {
+      totalAttempts,
+      correctAttempts,
+      accuracy,
+      streak,
+      weekActivity,
+      weekDays,
+      topicProgress,
+    }
   }, [attempts, topics])
 }

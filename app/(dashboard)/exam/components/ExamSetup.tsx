@@ -14,7 +14,7 @@ interface ExamSetupProps {
   onStart:  (config: ExamConfig) => void
 }
 
-const DURATIONS = [15, 20, 25, 30, 45, 60, 90]
+const DURATIONS = [5, 10, 15, 20, 25, 30, 45, 60, 90]
 
 const STANDARDS = [
   { value: "any",     label: "Any",     desc: "No filter"            },
@@ -36,8 +36,8 @@ const DIFFICULTIES = [
 export function ExamSetup({ subjects, topics, isPaid, onStart }: ExamSetupProps) {
   const [subjectId,     setSubjectId]     = useState("")
   const [topicId,       setTopicId]       = useState("")
-  const [questionCount, setQuestionCount] = useState(25)
-  const [durationMin,   setDurationMin]   = useState(30)
+  const [questionCount, setQuestionCount] = useState(5)
+  const [durationMin,   setDurationMin]   = useState(5)
   const [difficulty,    setDifficulty]    = useState<"any"|"easy"|"medium"|"hard">("any")
   const [standard,      setStandard]      = useState("any")
   const [countError,    setCountError]    = useState("")
@@ -48,10 +48,10 @@ export function ExamSetup({ subjects, topics, isPaid, onStart }: ExamSetupProps)
 
   const handleCountChange = (v: number) => {
     setQuestionCount(v)
-    setCountError(v < 25 ? "Minimum 25 questions required" : "")
+    setCountError(v < 5 ? "Minimum 5 questions required" : "")
   }
 
-  const canStart = subjectId && topicId && questionCount >= 25 && durationMin > 0
+  const canStart = subjectId && topicId && questionCount >= 5 && durationMin > 0
 
   const handleStart = () => {
     if (!canStart || !selectedSubject || !selectedTopic) return
@@ -129,13 +129,13 @@ export function ExamSetup({ subjects, topics, isPaid, onStart }: ExamSetupProps)
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
                 <Hash className="w-3.5 h-3.5" /> Questions
               </label>
-              <input type="number" min={25} max={100} value={questionCount}
+              <input type="number" min={5} max={100} value={questionCount}
                 onChange={e => handleCountChange(Number(e.target.value))}
                 className="w-full bg-background border border-border focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none transition-all"
               />
               {countError
                 ? <p className="text-xs text-red-400 mt-1">{countError}</p>
-                : <p className="text-xs text-muted-foreground mt-1">Minimum 25</p>
+                : <p className="text-xs text-muted-foreground mt-1">Minimum 5</p>
               }
             </div>
             <div>
@@ -192,7 +192,7 @@ export function ExamSetup({ subjects, topics, isPaid, onStart }: ExamSetupProps)
           </div>
 
           {/* Summary */}
-          {subjectId && topicId && questionCount >= 25 && (
+          {subjectId && topicId && questionCount >= 5 && (
             <div className="bg-emerald-400/5 border border-emerald-400/20 rounded-xl px-4 py-3 text-xs text-emerald-400 space-y-1">
               <p>📚 {selectedSubject?.name} → {selectedTopic?.name}</p>
               <p>⏱ {questionCount} questions · {durationMin} min · {(durationMin / questionCount).toFixed(1)} min/q</p>
