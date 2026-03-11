@@ -1,30 +1,20 @@
 FROM texlive/texlive:latest
 
 RUN apt-get update && apt-get install -y \
-    nodejs npm imagemagick \
-    # Bengali / Unicode fonts
-    fonts-beng \
-    fonts-beng-extra \
-    fonts-lohit-beng-bengali \
-    fonts-noto \
-    fonts-noto-cjk \
-    fonts-freefont-ttf \
-    fontconfig \
-    && fc-cache -fv \
+    nodejs npm imagemagick wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Allow ImageMagick to convert PDFs
 RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml || true
 
-# Install XeLaTeX Bengali support packages via tlmgr
-RUN tlmgr update --self && \
-    tlmgr install \
-      polyglossia \
-      xecyr \
-      lm-math \
-      fontspec \
-      collection-fontsrecommended \
-    || true
+# Download Kalpurush font (used by latexbangla) from GitHub
+RUN mkdir -p /usr/local/share/fonts/bengali && \
+    wget -q "https://github.com/nv-h/latexbangla/raw/master/Kalpurush.ttf" \
+         -O /usr/local/share/fonts/bengali/Kalpurush.ttf && \
+    fc-cache -fv
+
+# Install latexbangla + polyglossia via tlmgr
+RUN tlmgr install latexbangla polyglossia || true
 
 WORKDIR /app
 COPY package.json .
