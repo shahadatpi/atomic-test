@@ -71,55 +71,142 @@ function findEngine(name) {
 }
 
 // ── Install fonts on Linux (Render / Docker) ──────────────────────────────────
-function setupLinuxFonts() {
+async function setupLinuxFonts() {
   if (!IS_LINUX) return;
-  console.log("🐧 Linux detected — checking Bengali fonts…");
+  console.log("🐧 Linux detected — setting up Bengali fonts…");
 
-  // 1. Install system Bengali fonts via apt (fast, no auth needed)
-  try {
-    execSync("apt-get install -y -q fonts-beng fonts-lohit-beng-bengali fonts-noto 2>/dev/null || true", {
-      timeout: 60_000, stdio: "pipe",
-    });
-    console.log("✓ apt fonts installed");
-  } catch (e) {
-    console.log("apt fonts skipped:", e.message);
-  }
+  // Font dir inside the service — writable without root
+  const fontDir = path.join(__dirname, "fonts");
+  fs.mkdirSync(fontDir, { recursive: true });
 
-  // 2. Try to install Noto Bengali via tlmgr (TexLive package manager)
-  try {
-    execSync("tlmgr install noto 2>/dev/null || true", { timeout: 60_000, stdio: "pipe" });
-    console.log("✓ tlmgr noto installed");
-  } catch {}
+  // Fonts to download with fallback mirrors
+  const FONTS = [
+    {
+      name: "Kalpurush.ttf",
+      urls: [
+        "https://github.com/nv-h/latexbangla/raw/master/Kalpurush.ttf",
+        "https://raw.githubusercontent.com/lipi/kalpurush/master/Kalpurush.ttf",
+      ],
+    },
+    {
+      name: "NotoSerifBengali-Regular.ttf",
+      urls: [
+        "https://github.com/notofonts/noto-fonts/raw/main/hinted/ttf/NotoSerifBengali/NotoSerifBengali-Regular.ttf",
+      ],
+    },
+  ];
 
-  // 3. Copy any .ttf fonts from the project's fonts/ dir into the system font path
-  const projectFontsDir = path.join(__dirname, "fonts");
-  if (fs.existsSync(projectFontsDir)) {
-    const destDir = "/usr/local/share/fonts/atomictest/";
-    try {
-      fs.mkdirSync(destDir, { recursive: true });
-      const fonts = fs.readdirSync(projectFontsDir).filter(f => /\.(ttf|otf)$/i.test(f));
-      for (const f of fonts) {
-        fs.copyFileSync(path.join(projectFontsDir, f), path.join(destDir, f));
-        console.log("✓ copied font:", f);
-      }
-      execSync("fc-cache -fv 2>/dev/null || true", { timeout: 30_000, stdio: "pipe" });
-      console.log("✓ fc-cache refreshed");
-    } catch (e) {
-      console.log("font copy error:", e.message);
+  for (const font of FONTS) {
+    const dest = path.join(fontDir, font.name);
+    if (fs.existsSync(dest) && fs.statSync(dest).size > 10_000) {
+      console.log(`✓ font cached: ${font.name}`);
+      continue;
     }
+    let downloaded = false;
+    for (const url of font.urls) {
+      try {
+        console.log(`  downloading ${font.name} from ${url}…`);
+        const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+        if (!res.ok) continue;
+        const buf = Buffer.from(await res.arrayBuffer());
+        fs.writeFileSync(dest, buf);
+        console.log(`✓ downloaded ${font.name} (${buf.length} bytes)`);
+        downloaded = true;
+        break;
+      } catch (e) {
+        console.log(`  failed: ${e.message}`);
+      }
+    }
+    if (!downloaded) console.warn(`⚠ could not download ${font.name}`);
   }
 
-  // 4. Refresh TeX font DB
+  // Register fonts with fontconfig — try system dirs, fall back to user dir
+  const fcDirs = [
+    "/usr/local/share/fonts/atomictest",
+    "/usr/share/fonts/atomictest",
+    path.join(os.homedir(), ".fonts/atomictest"),
+  ];
+
+  let registered = false;
+  for (const dir of fcDirs) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      for (const f of fs.readdirSync(fontDir).filter(n => /\.(ttf|otf)$/i.test(n))) {
+        fs.copyFileSync(path.join(fontDir, f), path.join(dir, f));
+      }
+      execSync(`fc-cache -f "${dir}" 2>/dev/null || true`, { timeout: 15_000, stdio: "pipe" });
+      console.log(`✓ fonts registered in ${dir}`);
+      registered = true;
+      break;
+    } catch {}
+  }
+
+  if (!registered) {
+    // Last resort: set FONTCONFIG_PATH to local dir
+    process.env.FONTCONFIG_PATH = fontDir;
+    console.log("⚠ using local fontconfig path:", fontDir);
+  }
+
+  // Refresh TeX font DB
   try {
-    execSync("mktexlsr 2>/dev/null || true", { timeout: 30_000, stdio: "pipe" });
-    console.log("✓ mktexlsr done");
+    execSync("mktexlsr 2>/dev/null || true", { timeout: 20_000, stdio: "pipe" });
   } catch {}
 
-  // 5. List available Bengali fonts for debugging
+  // Log what's available
   try {
-    const fonts = execSync("fc-list :lang=bn 2>/dev/null | head -20", { timeout: 10_000 }).toString();
-    console.log("Bengali fonts available:\n", fonts || "(none — will use FreeSerif fallback)");
+    const avail = execSync("fc-list :lang=bn 2>/dev/null | head -10", { timeout: 8_000 }).toString().trim();
+    console.log("Bengali fonts available:", avail || "(none — LaTeX will use FreeSerif fallback)");
   } catch {}
+}
+
+// ── Download Kalpurush font if missing (works on any Linux — Render Node.js runtime) ──
+function downloadKalpurush() {
+  if (!IS_LINUX) return;
+  const fontDir  = "/usr/local/share/fonts/bengali";
+  const fontPath = `${fontDir}/Kalpurush.ttf`;
+  if (fs.existsSync(fontPath)) {
+    console.log("✓ Kalpurush already present");
+    return;
+  }
+  console.log("⬇ Downloading Kalpurush font…");
+  try {
+    fs.mkdirSync(fontDir, { recursive: true });
+    // Try multiple mirrors
+    const urls = [
+      "https://github.com/nv-h/latexbangla/raw/master/Kalpurush.ttf",
+      "https://github.com/adamRiverBank/BanglaFonts/raw/main/Kalpurush.ttf",
+    ];
+    let downloaded = false;
+    for (const url of urls) {
+      try {
+        execSync(`curl -fsSL "${url}" -o "${fontPath}"`, { timeout: 30_000, stdio: "pipe" });
+        if (fs.existsSync(fontPath) && fs.statSync(fontPath).size > 10000) {
+          downloaded = true;
+          console.log("✓ Kalpurush downloaded from", url);
+          break;
+        }
+      } catch { fs.rmSync(fontPath, { force: true }); }
+    }
+    if (downloaded) {
+      execSync("fc-cache -fv 2>/dev/null || true", { timeout: 20_000, stdio: "pipe" });
+      // Also install Noto Bengali via apt as backup
+      execSync("apt-get install -y -q fonts-noto 2>/dev/null || true", { timeout: 60_000, stdio: "pipe" });
+      execSync("fc-cache -fv 2>/dev/null || true", { timeout: 20_000, stdio: "pipe" });
+      console.log("✓ Font cache refreshed");
+      // List available Bengali fonts
+      try {
+        const list = execSync("fc-list :lang=bn 2>/dev/null | head -5").toString().trim();
+        console.log("Bengali fonts:", list || "(none)");
+      } catch {}
+    } else {
+      console.warn("⚠ Kalpurush download failed — will use Noto/FreeSerif fallback");
+      // Install Noto as fallback anyway
+      execSync("apt-get install -y -q fonts-noto fonts-freefont-ttf 2>/dev/null || true", { timeout: 60_000, stdio: "pipe" });
+      execSync("fc-cache -fv 2>/dev/null || true", { timeout: 20_000, stdio: "pipe" });
+    }
+  } catch (e) {
+    console.warn("Font setup error:", e.message);
+  }
 }
 
 // ── MiKTeX startup (Windows) ──────────────────────────────────────────────────
@@ -137,8 +224,21 @@ function setupWindowsFonts() {
   }
 }
 
-setupLinuxFonts();
-setupWindowsFonts();
+// Run font setup before starting server
+(async () => {
+  await setupLinuxFonts();
+  setupWindowsFonts();
+  downloadKalpurush();
+
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`\n🚀 TikZ/Paper compiler on :${PORT}`);
+    console.log(`   platform : ${process.platform}`);
+    console.log(`   xelatex  : ${XELATEX  || "NOT FOUND"}`);
+    console.log(`   pdflatex : ${PDFLATEX || "NOT FOUND"}`);
+    console.log(`   magick   : ${MAGICK   || "NOT FOUND"}`);
+  });
+})();
 
 const MAGICK  = findMagick();
 const XELATEX = findEngine("xelatex");
@@ -247,11 +347,4 @@ app.get("/health", (_, res) => res.json({
   platform: process.platform,
 }));
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`\n🚀 TikZ/Paper compiler on :${PORT}`);
-  console.log(`   platform : ${process.platform}`);
-  console.log(`   xelatex  : ${XELATEX  || "NOT FOUND"}`);
-  console.log(`   pdflatex : ${PDFLATEX || "NOT FOUND"}`);
-  console.log(`   magick   : ${MAGICK   || "NOT FOUND"}`);
-});
+
