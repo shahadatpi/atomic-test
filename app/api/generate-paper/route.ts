@@ -321,22 +321,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (!res.ok) {
-    const err = await res.text();
-    // Extract the most useful part: lines containing "!" (LaTeX errors) + surrounding context
-    const lines = err.split("\n");
-    const errorLines: string[] = [];
-    lines.forEach((line, i) => {
-      if (line.startsWith("!") || line.includes("Error") || line.includes("Undefined") || line.includes("Missing") || line.includes("Runaway") || line.includes("l.")) {
-        // Grab surrounding context: 3 lines before and after
-        const start = Math.max(0, i - 3);
-        const end   = Math.min(lines.length - 1, i + 5);
-        errorLines.push(...lines.slice(start, end + 1), "---");
-      }
-    });
-    const summary = errorLines.length > 0
-      ? errorLines.slice(0, 80).join("\n")
-      : err.slice(-5000); // fallback: last 5000 chars
-    return new NextResponse(`LaTeX error:\n\n${summary}`, { status: 500 });
+    let errText = await res.text();
+    // tikz-service returns JSON { error: "..." } since latest version
+    try {
+      const json = JSON.parse(errText);
+      if (json.error) errText = json.error;
+    } catch {}
+    return new NextResponse(`LaTeX error:\n\n${errText}`, { status: 500 });
   }
 
   const pdf      = await res.arrayBuffer();

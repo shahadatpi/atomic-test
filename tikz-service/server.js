@@ -1,5 +1,5 @@
 const express    = require("express");
-const { spawnSync, execSync } = require("child_process");
+const { spawnSync, execSync, spawn } = require("child_process");
 const fs         = require("fs");
 const path       = require("path");
 const os         = require("os");
@@ -7,14 +7,45 @@ const os         = require("os");
 const app = express();
 app.use(express.json({ limit: "4mb" }));
 
+const IS_WINDOWS = process.platform === "win32";
+const IS_LINUX   = process.platform === "linux";
+
+// ── Extract meaningful errors from LaTeX log ──────────────────────────────────
+function extractErrors(log) {
+  const lines = log.split("\n");
+  const out = [];
+  lines.forEach((line, i) => {
+    if (
+      line.startsWith("!") ||
+      line.match(/^l\.\d+/) ||
+      line.includes("Error:") ||
+      line.includes("Undefined control sequence") ||
+      line.includes("Missing") ||
+      line.includes("Runaway") ||
+      line.includes("Font") && line.includes("not found")
+    ) {
+      const start = Math.max(0, i - 2);
+      const end   = Math.min(lines.length - 1, i + 6);
+      out.push(...lines.slice(start, end + 1), "---");
+    }
+  });
+  // If nothing matched, return first 3000 chars (package loading) + last 2000 (actual error)
+  if (out.length === 0) {
+    return log.slice(0, 2000) + "\n...\n" + log.slice(-3000);
+  }
+  return out.slice(0, 120).join("\n");
+}
+
 // ── Find ImageMagick ──────────────────────────────────────────────────────────
 function findMagick() {
   const candidates = ["magick", "convert"];
-  try {
-    const pf   = "C:\\Program Files";
-    const dirs = fs.readdirSync(pf).filter(d => d.startsWith("ImageMagick"));
-    for (const d of dirs) candidates.push(path.join(pf, d, "magick.exe"));
-  } catch {}
+  if (IS_WINDOWS) {
+    try {
+      const pf   = "C:\\Program Files";
+      const dirs = fs.readdirSync(pf).filter(d => d.startsWith("ImageMagick"));
+      for (const d of dirs) candidates.push(path.join(pf, d, "magick.exe"));
+    } catch {}
+  }
   for (const c of candidates) {
     try {
       if (spawnSync(c, ["--version"], { timeout: 3000 }).status === 0) {
@@ -39,24 +70,79 @@ function findEngine(name) {
   return null;
 }
 
+// ── Install fonts on Linux (Render / Docker) ──────────────────────────────────
+function setupLinuxFonts() {
+  if (!IS_LINUX) return;
+  console.log("🐧 Linux detected — checking Bengali fonts…");
+
+  // 1. Install system Bengali fonts via apt (fast, no auth needed)
+  try {
+    execSync("apt-get install -y -q fonts-beng fonts-lohit-beng-bengali fonts-noto 2>/dev/null || true", {
+      timeout: 60_000, stdio: "pipe",
+    });
+    console.log("✓ apt fonts installed");
+  } catch (e) {
+    console.log("apt fonts skipped:", e.message);
+  }
+
+  // 2. Try to install Noto Bengali via tlmgr (TexLive package manager)
+  try {
+    execSync("tlmgr install noto 2>/dev/null || true", { timeout: 60_000, stdio: "pipe" });
+    console.log("✓ tlmgr noto installed");
+  } catch {}
+
+  // 3. Copy any .ttf fonts from the project's fonts/ dir into the system font path
+  const projectFontsDir = path.join(__dirname, "fonts");
+  if (fs.existsSync(projectFontsDir)) {
+    const destDir = "/usr/local/share/fonts/atomictest/";
+    try {
+      fs.mkdirSync(destDir, { recursive: true });
+      const fonts = fs.readdirSync(projectFontsDir).filter(f => /\.(ttf|otf)$/i.test(f));
+      for (const f of fonts) {
+        fs.copyFileSync(path.join(projectFontsDir, f), path.join(destDir, f));
+        console.log("✓ copied font:", f);
+      }
+      execSync("fc-cache -fv 2>/dev/null || true", { timeout: 30_000, stdio: "pipe" });
+      console.log("✓ fc-cache refreshed");
+    } catch (e) {
+      console.log("font copy error:", e.message);
+    }
+  }
+
+  // 4. Refresh TeX font DB
+  try {
+    execSync("mktexlsr 2>/dev/null || true", { timeout: 30_000, stdio: "pipe" });
+    console.log("✓ mktexlsr done");
+  } catch {}
+
+  // 5. List available Bengali fonts for debugging
+  try {
+    const fonts = execSync("fc-list :lang=bn 2>/dev/null | head -20", { timeout: 10_000 }).toString();
+    console.log("Bengali fonts available:\n", fonts || "(none — will use FreeSerif fallback)");
+  } catch {}
+}
+
+// ── MiKTeX startup (Windows) ──────────────────────────────────────────────────
+function setupWindowsFonts() {
+  if (!IS_WINDOWS) return;
+  console.log("🪟 Windows detected — refreshing MiKTeX…");
+  try {
+    execSync("mpm --install=kalpurush 2>nul", { timeout: 60_000, stdio: "pipe" });
+    execSync("mpm --install=bengali   2>nul", { timeout: 60_000, stdio: "pipe" });
+    execSync("initexmf --update-fndb",         { timeout: 30_000, stdio: "pipe" });
+    execSync("fc-cache -fv",                   { timeout: 30_000, stdio: "pipe" });
+    console.log("✓ MiKTeX fonts refreshed");
+  } catch (e) {
+    console.log("MiKTeX setup skipped:", e.message);
+  }
+}
+
+setupLinuxFonts();
+setupWindowsFonts();
+
 const MAGICK  = findMagick();
 const XELATEX = findEngine("xelatex");
 const PDFLATEX= findEngine("pdflatex");
-
-// ── Ensure Bengali fonts are installed (MiKTeX) ───────────────────────────────
-function ensureBengaliFonts() {
-  const fonts = ["kalpurush", "bengali"];
-  for (const pkg of fonts) {
-    try {
-      const r = spawnSync("miktex", ["packages", "install", pkg], { timeout: 60_000, stdio: "pipe" });
-      if (r.status === 0) console.log(`✓ MiKTeX package installed: ${pkg}`);
-    } catch {}
-  }
-  // Refresh font cache
-  try { execSync("fc-cache -fv", { timeout: 30_000, stdio: "pipe" }); } catch {}
-  try { execSync("initexmf --update-fndb", { timeout: 30_000, stdio: "pipe" }); } catch {}
-}
-try { ensureBengaliFonts(); } catch (e) { console.warn("Font setup skipped:", e.message); }
 
 // ── Compile LaTeX ──────────────────────────────────────────────────────────────
 function compile(latex, engine, dir, passes = 1) {
@@ -67,17 +153,23 @@ function compile(latex, engine, dir, passes = 1) {
   fs.writeFileSync(texFile, latex, "utf8");
 
   for (let i = 0; i < passes; i++) {
-    try {
-      const cmd = `"${engine}" -interaction=nonstopmode -halt-on-error -output-directory="${dir}" "${texFile}"`;
-      execSync(cmd, { timeout: 120_000, stdio: "pipe" });
-    } catch {}
+    // Use spawnSync with args array — no shell quoting issues on any platform
+    const result = spawnSync(
+      engine,
+      ["-interaction=nonstopmode", "-halt-on-error", `-output-directory=${dir}`, texFile],
+      { timeout: 120_000, cwd: dir }
+    );
+    // Log stdout for debugging but don't throw yet — check PDF existence below
+    if (result.error) {
+      console.error("spawnSync error:", result.error);
+    }
   }
 
   if (!fs.existsSync(pdfFile)) {
-    const log = fs.existsSync(logFile)
-      ? fs.readFileSync(logFile, "utf8").slice(-4000)
-      : "No log file";
-    throw new Error(log);
+    const rawLog = fs.existsSync(logFile)
+      ? fs.readFileSync(logFile, "utf8")
+      : "No log file generated";
+    throw new Error(extractErrors(rawLog));
   }
   return pdfFile;
 }
@@ -87,9 +179,6 @@ app.post("/compile", (req, res) => {
   const { latex, engine: requestedEngine, format: outputFormat } = req.body;
   if (!latex) return res.status(400).send("No latex provided");
 
-  // Decide engine:
-  // - if latexbangla / fontspec / Bengali present → must use xelatex
-  // - otherwise use requested engine or pdflatex fallback
   const needsXelatex = /\\usepackage\s*(\[[^\]]*\])?\s*\{(latexbangla|fontspec)\}/.test(latex)
     || /[\u0980-\u09FF]/.test(latex);
 
@@ -102,7 +191,6 @@ app.post("/compile", (req, res) => {
     if (!enginePath) return res.status(500).send("No LaTeX engine found");
   }
 
-  // exam class needs 2 passes for correct point totals
   const passes = /\\documentclass.*\{exam\}/.test(latex) ? 2 : 1;
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "paper-"));
@@ -111,19 +199,18 @@ app.post("/compile", (req, res) => {
     try {
       pdfFile = compile(latex, enginePath, dir, passes);
     } catch (e) {
-      console.error("Compile failed:\n", String(e).slice(-1500));
-      return res.status(422).send(`LaTeX error:\n${String(e).slice(-4000)}`);
+      const errText = String(e.message || e);
+      console.error("Compile failed:\n", errText.slice(0, 2000));
+      return res.status(422).json({ error: errText });
     }
 
     const pdfBuffer = fs.readFileSync(pdfFile);
 
-    // Return PDF directly if requested
     if (outputFormat === "pdf") {
       res.set("Content-Type", "application/pdf");
       return res.send(pdfBuffer);
     }
 
-    // Otherwise try to convert to PNG
     if (MAGICK) {
       const pngFile = path.join(dir, "doc.png");
       const r = spawnSync(MAGICK, [
@@ -138,7 +225,6 @@ app.post("/compile", (req, res) => {
       console.warn("magick failed:", r.stderr?.toString());
     }
 
-    // Fallback: return PDF as base64 JSON (for TikZ diagrams)
     res.json({ pdf: pdfBuffer.toString("base64") });
 
   } finally {
@@ -151,11 +237,13 @@ app.get("/health", (_, res) => res.json({
   xelatex:  !!XELATEX,
   pdflatex: !!PDFLATEX,
   magick:   !!MAGICK,
+  platform: process.platform,
 }));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 TikZ/Paper compiler on :${PORT}`);
+  console.log(`   platform : ${process.platform}`);
   console.log(`   xelatex  : ${XELATEX  || "NOT FOUND"}`);
   console.log(`   pdflatex : ${PDFLATEX || "NOT FOUND"}`);
   console.log(`   magick   : ${MAGICK   || "NOT FOUND"}`);
