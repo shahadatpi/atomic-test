@@ -13,6 +13,22 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const WIDE_COMMANDS = [
+  "\\frac","\\dfrac","\\tfrac","\\sqrt","\\sum","\\int","\\oint","\\prod",
+  "\\begin","\\matrix","\\pmatrix","\\bmatrix",
+  "\\vec","\\hat","\\bar","\\tilde","\\dot","\\ddot",
+  "\\overline","\\underline",
+];
+
+function isWideOption(v: string | undefined): boolean {
+  if (!v) return false;
+  if (WIDE_COMMANDS.some(cmd => v.includes(cmd))) return true;
+  const stripped = v.replace(/\\[a-zA-Z]+\{[^}]*\}/g, "X").replace(/[{}$\\]/g, "");
+  if (stripped.length > 18) return true;
+  if (/[^\x00-\x7F]/.test(v) && stripped.length > 10) return true; // Bangla
+  return false;
+}
+
 interface Problem {
   id:             string;
   question:       string;
@@ -139,8 +155,8 @@ function LaTeXField({
           onChange={e => onChange(e.target.value)}
           rows={rows}
           placeholder={placeholder}
-          style={autoGrow ? { resize: "none", overflow: "hidden" } : undefined}
-          className="w-full bg-background border border-border focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all font-mono min-h-[80px] resize-y"
+          style={autoGrow ? { resize: "none", overflow: "hidden" } : { minHeight: `${rows * 24}px` }}
+          className="w-full bg-background border border-border focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all font-mono resize-y"
         />
       )}
     </div>
@@ -336,7 +352,9 @@ function EditModal({ problem, onClose, onSave }: {
   const handleSave = async () => {
     if (!subjectId || !topicId) { setError("Subject and Topic are required"); return; }
     if (!question.trim()) { setError("Question cannot be empty"); return; }
-    if (!options.a.trim() || !options.b.trim() || !options.c.trim() || !options.d.trim()) {
+    const isMCQ = problemType.includes("mcq");
+    const isCQ  = problemType === "board_cq";
+    if (isMCQ && (!options.a.trim() || !options.b.trim() || !options.c.trim() || !options.d.trim())) {
       setError("All four options must be filled in"); return;
     }
     setSaving(true);
@@ -347,10 +365,10 @@ function EditModal({ problem, onClose, onSave }: {
       topic_id:       topicId,
       subtopic_id:    subtopicId || null,
       question:       question.trim(),
-      option_a:       options.a.trim(),
-      option_b:       options.b.trim(),
-      option_c:       options.c.trim(),
-      option_d:       options.d.trim(),
+      option_a:       (isMCQ || isCQ) ? options.a.trim() : "",
+      option_b:       (isMCQ || isCQ) ? options.b.trim() : "",
+      option_c:       (isMCQ || isCQ) ? options.c.trim() : "",
+      option_d:       (isMCQ || isCQ) ? options.d.trim() : "",
       correct_answer: correctAnswer,
       explanation:    explanation.trim() || null,
       difficulty,
@@ -444,11 +462,12 @@ function EditModal({ problem, onClose, onSave }: {
             label="QUESTION"
             value={question}
             onChange={setQuestion}
-            rows={4}
+            rows={problemType.includes("mcq") ? 4 : 10}
             placeholder="LaTeX supported — $math$, $$display$$, \begin{tikzpicture}...\end{tikzpicture}"
           />
 
-          {/* Options */}
+          {/* Options — only for MCQ types */}
+          {problemType.includes("mcq") && (
           <div className="space-y-1">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Options</p>
@@ -457,7 +476,6 @@ function EditModal({ problem, onClose, onSave }: {
             <div className="space-y-4">
               {(["a", "b", "c", "d"] as const).map(key => (
                 <div key={key} className="flex items-start gap-3">
-                  {/* Correct answer selector button */}
                   <button
                     type="button"
                     onClick={() => setCorrectAnswer(key)}
@@ -484,13 +502,48 @@ function EditModal({ problem, onClose, onSave }: {
               ))}
             </div>
           </div>
+          )}
+
+          {/* CQ sub-questions ক খ গ ঘ — only for board_cq */}
+          {problemType === "board_cq" && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">সৃজনশীল প্রশ্ন</p>
+              <span className="text-xs text-emerald-400/70">ক · খ · গ · ঘ</span>
+            </div>
+            <div className="space-y-4">
+              {([
+                { key: "a" as const, label: "ক", mark: "১" },
+                { key: "b" as const, label: "খ", mark: "২" },
+                { key: "c" as const, label: "গ", mark: "৩" },
+                { key: "d" as const, label: "ঘ", mark: "৪" },
+              ]).map(({ key, label, mark }) => (
+                <div key={key} className="flex items-start gap-3">
+                  <div className="mt-6 w-8 h-8 shrink-0 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                    <span className="text-sm font-bold text-emerald-400">{label}</span>
+                  </div>
+                  <div className="flex-1">
+                    <LaTeXField
+                      label={label}
+                      value={options[key]}
+                      onChange={v => setOptions(o => ({ ...o, [key]: v }))}
+                      rows={3}
+                      placeholder={`${label} — LaTeX সাপোর্টেড`}
+                    />
+                  </div>
+                  <span className="mt-6 text-xs font-mono text-muted-foreground pt-2">{mark} নম্বর</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          )}
 
           {/* Explanation */}
           <LaTeXField
             label="EXPLANATION (optional)"
             value={explanation}
             onChange={setExplanation}
-            rows={8}
+            rows={problemType.includes("mcq") ? 8 : 12}
             autoGrow
             placeholder="Step-by-step solution shown after student answers..."
           />
@@ -765,25 +818,51 @@ function ProblemCard({ problem: init, onDelete, number }: {
 
         {expanded && (
           <div className="border-t border-border px-5 py-4 space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              {(["a", "b", "c", "d"] as const).map(opt => {
-                const text      = problem[`option_${opt}` as keyof Problem] as string;
-                const isCorrect = problem.correct_answer === opt;
-                return (
-                  <div key={opt} className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border text-sm ${
-                    isCorrect
-                      ? "border-emerald-400/40 bg-emerald-400/5 text-emerald-300"
-                      : "border-border text-muted-foreground"
-                  }`}>
-                    <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center text-xs font-bold font-mono mt-0.5 ${
-                      isCorrect ? "bg-violet-500 text-white" : "bg-muted text-muted-foreground"
-                    }`}>{opt.toUpperCase()}</span>
-                    <span className="flex-1 text-xs leading-relaxed"><MathText text={text} /></span>
-                    {isCorrect && <CheckCircle className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />}
-                  </div>
-                );
-              })}
-            </div>
+            {/* MCQ options */}
+            {(problem.problem_type?.includes("mcq") && !!problem.option_a) && (
+              <div className="grid grid-cols-2 gap-2">
+                {(["a", "b", "c", "d"] as const).map(opt => {
+                  const text      = problem[`option_${opt}` as keyof Problem] as string;
+                  const isCorrect = problem.correct_answer === opt;
+                  const wide      = isWideOption(text);
+                  return (
+                    <div key={opt} className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border text-sm ${wide ? "col-span-2" : ""} ${
+                      isCorrect
+                        ? "border-emerald-400/40 bg-emerald-400/5 text-emerald-300"
+                        : "border-border text-muted-foreground"
+                    }`}>
+                      <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center text-xs font-bold font-mono mt-0.5 ${
+                        isCorrect ? "bg-violet-500 text-white" : "bg-muted text-muted-foreground"
+                      }`}>{opt.toUpperCase()}</span>
+                      <span className="flex-1 text-xs leading-relaxed"><MathText text={text} /></span>
+                      {isCorrect && <CheckCircle className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* CQ sub-questions ক খ গ ঘ */}
+            {(problem.problem_type === "board_cq" && !!problem.option_a) && (
+              <div className="space-y-1">
+                {([
+                  { opt: "a" as const, label: "ক", mark: 1 },
+                  { opt: "b" as const, label: "খ", mark: 2 },
+                  { opt: "c" as const, label: "গ", mark: 3 },
+                  { opt: "d" as const, label: "ঘ", mark: 4 },
+                ]).map(({ opt, label, mark }) => {
+                  const text = problem[`option_${opt}` as keyof Problem] as string;
+                  if (!text) return null;
+                  return (
+                    <div key={opt} className="flex items-baseline gap-2 py-1">
+                      <span className="shrink-0 text-sm font-semibold text-foreground w-4">{label}.</span>
+                      <div className="flex-1 text-sm text-foreground leading-relaxed"><MathText text={text} /></div>
+                      <span className="shrink-0 text-xs text-muted-foreground">{mark}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {problem.explanation && (
               <div className="border border-border rounded-xl overflow-hidden">

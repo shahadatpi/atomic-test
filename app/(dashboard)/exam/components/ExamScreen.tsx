@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react"
 import MathText from "@/components/math/MathText"
+import { OptionsGrid } from "@/components/shared/OptionsGrid"
 import type { ExamProblem, ExamAnswer, ExamConfig } from "../types"
 
 interface ExamScreenProps {
@@ -20,11 +21,16 @@ export function ExamScreen({ config, problems, onSubmit }: ExamScreenProps) {
   const [submitted, setSubmitted] = useState(false)
   const startTime = useRef(Date.now())
 
+  // ── Countdown ────────────────────────────────────────────────────────
   useEffect(() => {
     if (submitted) return
     const interval = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(interval); handleSubmit(true); return 0 }
+        if (t <= 1) {
+          clearInterval(interval)
+          handleSubmit(true)
+          return 0
+        }
         return t - 1
       })
     }, 1000)
@@ -35,41 +41,58 @@ export function ExamScreen({ config, problems, onSubmit }: ExamScreenProps) {
     if (submitted) return
     setSubmitted(true)
     const timeTaken = Math.round((Date.now() - startTime.current) / 1000)
+
     const examAnswers: ExamAnswer[] = problems.map(p => {
       const selected = answers[p.id] ?? null
-      return { problemId: p.id, selected, correct: p.correct_answer, isCorrect: selected === p.correct_answer }
+      return {
+        problemId: p.id,
+        selected,
+        correct:   p.correct_answer,
+        isCorrect: selected === p.correct_answer,
+      }
     })
     onSubmit(examAnswers, timeTaken)
   }, [submitted, answers, problems, onSubmit])
 
+  // ── Timer display ─────────────────────────────────────────────────────
   const mins = Math.floor(timeLeft / 60)
   const secs = timeLeft % 60
-  const timeStr    = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
-  const isWarning  = timeLeft <= 60
-  const isUrgent   = timeLeft <= 30
+  const timeStr   = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+  const isWarning = timeLeft <= 60
+  const isUrgent  = timeLeft <= 30
+
   const answeredCount = Object.keys(answers).length
   const progress      = Math.round((answeredCount / problems.length) * 100)
 
   return (
-    <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');`}</style>
 
-      {/* Sticky header */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border px-4 md:px-8 py-3">
+      {/* ── Sticky header ────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-20 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-4 md:px-8 py-3">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+
+          {/* Left: topic info */}
           <div>
-            <p className="text-xs text-muted-foreground font-mono">{config.subjectName} · {config.topicName}</p>
-            <p className="text-sm font-medium text-foreground">{answeredCount} / {problems.length} answered</p>
+            <p className="text-xs text-zinc-500 font-mono">{config.subjectName} · {config.topicName}</p>
+            <p className="text-sm font-medium text-white">{answeredCount} / {problems.length} answered</p>
           </div>
+
+          {/* Centre: progress bar */}
           <div className="flex-1 hidden md:block">
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-400 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-400 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
+
+          {/* Right: timer */}
           <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-mono text-lg font-bold transition-colors ${
             isUrgent  ? "bg-red-400/10 border-red-400/30 text-red-400 animate-pulse"
             : isWarning ? "bg-amber-400/10 border-amber-400/30 text-amber-400"
-            :             "bg-card border-border text-foreground"
+            :             "bg-zinc-900 border-zinc-800 text-white"
           }`}>
             <Clock className="w-4 h-4" />
             {timeStr}
@@ -77,52 +100,40 @@ export function ExamScreen({ config, problems, onSubmit }: ExamScreenProps) {
         </div>
       </div>
 
-      {/* Questions */}
+      {/* ── Questions ────────────────────────────────────────────────── */}
       <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 space-y-6">
         {problems.map((problem, idx) => {
           const selected = answers[problem.id]
           return (
-            <div key={problem.id} className="bg-card border border-border rounded-2xl p-6 space-y-4">
+            <div key={problem.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-5">
+
+              {/* Question header */}
               <div className="flex items-start gap-3">
-                <span className="shrink-0 w-7 h-7 rounded-lg bg-muted flex items-center justify-center text-xs font-mono text-muted-foreground mt-0.5">
+                <span className="shrink-0 w-7 h-7 rounded-lg bg-zinc-800 flex items-center justify-center text-xs font-mono text-zinc-400 mt-0.5">
                   {idx + 1}
                 </span>
-                <div className="flex-1 text-sm text-foreground leading-relaxed">
+                <div className="flex-1 text-sm text-zinc-100 leading-relaxed min-w-0">
                   <MathText text={problem.question} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pl-10">
-                {OPTION_KEYS.map(key => {
-                  const value      = problem[`option_${key}` as keyof ExamProblem] as string
-                  const isSelected = selected === key
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => setAnswers(a => ({ ...a, [problem.id]: key }))}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left text-sm transition-all ${
-                        isSelected
-                          ? "border-emerald-400 bg-emerald-400/10 text-emerald-400"
-                          : "border-border hover:border-muted-foreground hover:bg-accent/50 text-foreground"
-                      }`}
-                    >
-                      <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center text-xs font-mono font-bold uppercase ${
-                        isSelected ? "bg-emerald-400 text-zinc-950" : "bg-muted text-muted-foreground"
-                      }`}>
-                        {key}
-                      </span>
-                      <span className="flex-1 text-xs leading-snug"><MathText text={value} /></span>
-                      {isSelected && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                    </button>
-                  )
-                })}
-              </div>
+              <OptionsGrid
+                variant="exam"
+                options={[
+                  { key: "a", value: problem.option_a },
+                  { key: "b", value: problem.option_b },
+                  { key: "c", value: problem.option_c },
+                  { key: "d", value: problem.option_d },
+                ]}
+                selected={selected ?? null}
+                onSelect={key => setAnswers(a => ({ ...a, [problem.id]: key }))}
+              />
             </div>
           )
         })}
 
-        {/* Submit */}
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        {/* ── Submit section ──────────────────────────────────────────── */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
           {answeredCount < problems.length && (
             <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-4 py-3 rounded-xl">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
@@ -137,7 +148,7 @@ export function ExamScreen({ config, problems, onSubmit }: ExamScreenProps) {
           </button>
         </div>
 
-        <div className="h-10" />
+        <div className="h-10" /> {/* bottom padding */}
       </div>
     </div>
   )

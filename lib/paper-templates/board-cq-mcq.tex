@@ -1,0 +1,117 @@
+\documentclass[addpoints,legalpaper]{exam}
+
+%% ── Core packages ────────────────────────────────────────────────────────────
+\usepackage{multicol}
+\usepackage{nicematrix}
+\usepackage{mathtools,array,amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage{dirtytalk}
+\usepackage{tasks}[newest]
+\usepackage{draftwatermark}
+\usepackage[top=.5in,left=0.5in,right=0.5in,bottom=0.75in]{geometry}
+
+%% ── TikZ / PGF / CircuiTikZ ──────────────────────────────────────────────────
+\usepackage{tikz,pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{angles,quotes,positioning,calc,decorations.markings}
+\usepackage[americanvoltages,fulldiodes,siunitx,nooldvoltagedirection,RPvoltages]{circuitikz}
+
+%% ── XeLaTeX Bengali fonts (replaces latexbangla — avoids \solution conflict) ─
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{bengali}
+\setotherlanguage{english}
+\newfontfamily\bengalifont[Script=Bengali]{Kalpurush}
+\newfontfamily\bengalitermfont[Script=Bengali]{Siyam Rupali}
+
+%% ── Fix: exam class owns \solution — prevent any redefinition ────────────────
+%% (latexbangla / amsthm would conflict here; since we load fontspec directly, 
+%%  there is no conflict. This guard is kept as safety for any future package.)
+\providecommand{\solution}{}% if somehow still attempted, silently no-op
+
+%% ── Tasks setup ──────────────────────────────────────────────────────────────
+\newcommand*\tasklabelformat[1]{#1.}
+\settasks{
+  label        = \Alph*,
+  label-format = \tasklabelformat,
+  label-width  = 12pt
+}
+
+%% ── Watermark ────────────────────────────────────────────────────────────────
+\SetWatermarkText{%%WATERMARK_TEXT%%}
+\SetWatermarkScale{.5}
+\SetWatermarkLightness{0.9}
+
+%% ── CircuiTikZ style ─────────────────────────────────────────────────────────
+\ctikzset{
+  resistors/scale=0.8, capacitors/scale=0.7,
+  diodes/scale=0.7,    transistors/scale=1.3,
+  voltage=american,    misc/scale=0.8, misc/thickness=1
+}
+
+%% ── Custom rbulb bipole ───────────────────────────────────────────────────────
+\makeatletter
+\pgfcircdeclarebipolescaled{misc}
+  {}{\ctikzvalof{bipoles/bulb/height}}
+  {rbulb}
+  {\ctikzvalof{bipoles/bulb/height}}{\ctikzvalof{bipoles/bulb/width}}
+{%
+  \pgf@circ@setlinewidth{bipoles}{\pgfstartlinewidth}
+  \pgfpathellipse{\pgfpointorigin}
+    {\pgfpoint{0}{0.8\pgf@circ@res@up}}
+    {\pgfpoint{0.8\pgf@circ@res@left}{0}}
+  \pgf@circ@draworfill
+  \pgfpathmoveto{\pgfpoint{\pgf@circ@res@left}{\pgf@circ@res@zero}}
+  \pgfpathlineto{\pgfpoint{0.8\pgf@circ@res@left}{\pgf@circ@res@zero}}
+  \pgfpathcurveto
+    {\pgfpoint{0.5\pgf@circ@res@left}{+0pt}}
+    {\pgfpoint{0.4\pgf@circ@res@left}{0.6\pgf@circ@res@left}}
+    {\pgfpoint{+0pt}{+0pt}}
+  \pgfpathcurveto
+    {\pgfpoint{.2\pgf@circ@res@right}{.2\pgf@circ@res@right}}
+    {\pgfpoint{.2\pgf@circ@res@right}{0.6\pgf@circ@res@right}}
+    {\pgfpoint{+0pt}{0.6\pgf@circ@res@right}}
+  \pgfpathcurveto
+    {\pgfpoint{.2\pgf@circ@res@left}{0.6\pgf@circ@res@right}}
+    {\pgfpoint{.2\pgf@circ@res@left}{.2\pgf@circ@res@right}}
+    {\pgfpoint{+0pt}{+0pt}}
+  \pgfpathcurveto
+    {\pgfpoint{0.4\pgf@circ@res@right}{0.6\pgf@circ@res@left}}
+    {\pgfpoint{0.5\pgf@circ@res@right}{+0pt}}
+    {\pgfpoint{0.8\pgf@circ@res@right}{\pgf@circ@res@zero}}
+  \pgfpathlineto{\pgfpoint{\pgf@circ@res@right}{\pgf@circ@res@zero}}
+  \pgfusepath{draw}
+}%
+\pgfcirc@activate@bipole@simple{l}{rbulb}
+\makeatother
+
+%% ── Arrow helpers ─────────────────────────────────────────────────────────────
+\tikzset{
+  directed/.style={postaction={decorate,decoration={markings,
+    mark=at position .65 with {\arrow{stealth}}}}},
+  mid arrow/.style={postaction={decorate,decoration={markings,
+    mark=at position .5 with {\arrow[#1]{stealth}}}}},
+}
+\newcommand{\arrowIn}{%
+  \tikz \draw[-stealth] (-1pt,0) -- (1pt,0);%
+}
+
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+%% ── Header ───────────────────────────────────────────────────────────────────
+\begin{center}
+%%INSTITUTION_LINE%%{\Large %%EXAM_TITLE%%}\\[2pt]
+{\large %%SUBJECT%%}\\[4pt]
+সময়ঃ %%TIME%% \hfill পূর্ণমানঃ %%FULL_MARKS%%
+%%EXAM_DATE_LINE%%
+\end{center}
+\rule{\textwidth}{0.4pt}
+\vspace{4pt}
+
+%%CQ_SECTION%%
+%%MCQ_SECTION%%
+
+\end{document}

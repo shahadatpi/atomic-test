@@ -224,7 +224,7 @@ export default function HeroSection() {
         {/* Eyebrow line */}
         <div className="fu d2 flex items-center gap-3 mb-6">
           <div className="h-px w-12 bg-gradient-to-r from-transparent to-zinc-700" />
-          <span className="text-xs text-zinc-600 font-mono tracking-widest uppercase">est. 2024 · Dhaka, BD</span>
+          <span className="text-xs text-zinc-600 font-mono tracking-widest uppercase">est. 2026 · Sylhet, BD</span>
           <div className="h-px w-12 bg-gradient-to-l from-transparent to-zinc-700" />
         </div>
 

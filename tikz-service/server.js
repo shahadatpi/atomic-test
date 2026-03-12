@@ -5,94 +5,158 @@ const path       = require("path");
 const os         = require("os");
 
 const app = express();
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "4mb" }));
 
-// Find ImageMagick convert
+// ── Find ImageMagick ──────────────────────────────────────────────────────────
 function findMagick() {
-  for (const cmd of ["convert", "magick"]) {
+  const candidates = ["magick", "convert"];
+  try {
+    const pf   = "C:\\Program Files";
+    const dirs = fs.readdirSync(pf).filter(d => d.startsWith("ImageMagick"));
+    for (const d of dirs) candidates.push(path.join(pf, d, "magick.exe"));
+  } catch {}
+  for (const c of candidates) {
     try {
-      const r = spawnSync(cmd, ["--version"], { encoding: "utf8", timeout: 3000 });
-      if (r.status === 0) { console.log("✓ magick:", cmd); return cmd; }
+      if (spawnSync(c, ["--version"], { timeout: 3000 }).status === 0) {
+        console.log("✓ magick:", c);
+        return c;
+      }
     } catch {}
   }
-  console.log("✗ magick not found"); return null;
-}
-const MAGICK = findMagick();
-
-// Detect if latex source needs xelatex:
-// 1. Caller passes engine:"xelatex"
-// 2. Contains \usepackage{fontspec}
-// 3. Contains Bengali Unicode
-function needsXelatex(latex, engineHint) {
-  if (engineHint === "xelatex") return true;
-  if (/\\usepackage\{fontspec\}/.test(latex)) return true;
-  if (/[\u0980-\u09FF]/.test(latex)) return true;
-  return false;
+  console.log("✗ magick not found");
+  return null;
 }
 
-app.post("/compile", (req, res) => {
-  const { latex, engine } = req.body;
-  if (!latex) return res.status(400).json({ error: "No latex provided" });
+// ── Find LaTeX engines ────────────────────────────────────────────────────────
+function findEngine(name) {
+  try {
+    if (spawnSync(name, ["--version"], { timeout: 5000 }).status === 0) {
+      console.log(`✓ ${name} found`);
+      return name;
+    }
+  } catch {}
+  console.log(`✗ ${name} not found`);
+  return null;
+}
 
-  const dir     = fs.mkdtempSync(path.join(os.tmpdir(), "tikz-"));
+const MAGICK  = findMagick();
+const XELATEX = findEngine("xelatex");
+const PDFLATEX= findEngine("pdflatex");
+
+// ── Ensure Bengali fonts are installed (MiKTeX) ───────────────────────────────
+function ensureBengaliFonts() {
+  const fonts = ["kalpurush", "bengali"];
+  for (const pkg of fonts) {
+    try {
+      const r = spawnSync("miktex", ["packages", "install", pkg], { timeout: 60_000, stdio: "pipe" });
+      if (r.status === 0) console.log(`✓ MiKTeX package installed: ${pkg}`);
+    } catch {}
+  }
+  // Refresh font cache
+  try { execSync("fc-cache -fv", { timeout: 30_000, stdio: "pipe" }); } catch {}
+  try { execSync("initexmf --update-fndb", { timeout: 30_000, stdio: "pipe" }); } catch {}
+}
+try { ensureBengaliFonts(); } catch (e) { console.warn("Font setup skipped:", e.message); }
+
+// ── Compile LaTeX ──────────────────────────────────────────────────────────────
+function compile(latex, engine, dir, passes = 1) {
   const texFile = path.join(dir, "doc.tex");
   const pdfFile = path.join(dir, "doc.pdf");
-  const pngFile = path.join(dir, "doc.png");
+  const logFile = path.join(dir, "doc.log");
 
-  try {
-    const useXelatex = needsXelatex(latex, engine);
-    const compiler   = useXelatex ? "xelatex" : "pdflatex";
+  fs.writeFileSync(texFile, latex, "utf8");
 
-    fs.writeFileSync(texFile, latex, "utf8");
-    console.log(`Compiling with ${compiler}...`);
-
-    // Step 1: Compile tex → pdf
+  for (let i = 0; i < passes; i++) {
     try {
-      execSync(
-        `${compiler} -interaction=nonstopmode -output-directory="${dir}" "${texFile}"`,
-        { timeout: 45000, stdio: "pipe" }
-      );
+      const cmd = `"${engine}" -interaction=nonstopmode -halt-on-error -output-directory="${dir}" "${texFile}"`;
+      execSync(cmd, { timeout: 120_000, stdio: "pipe" });
+    } catch {}
+  }
+
+  if (!fs.existsSync(pdfFile)) {
+    const log = fs.existsSync(logFile)
+      ? fs.readFileSync(logFile, "utf8").slice(-4000)
+      : "No log file";
+    throw new Error(log);
+  }
+  return pdfFile;
+}
+
+// ── /compile endpoint ──────────────────────────────────────────────────────────
+app.post("/compile", (req, res) => {
+  const { latex, engine: requestedEngine, format: outputFormat } = req.body;
+  if (!latex) return res.status(400).send("No latex provided");
+
+  // Decide engine:
+  // - if latexbangla / fontspec / Bengali present → must use xelatex
+  // - otherwise use requested engine or pdflatex fallback
+  const needsXelatex = /\\usepackage\s*(\[[^\]]*\])?\s*\{(latexbangla|fontspec)\}/.test(latex)
+    || /[\u0980-\u09FF]/.test(latex);
+
+  let enginePath;
+  if (needsXelatex) {
+    enginePath = XELATEX;
+    if (!enginePath) return res.status(500).send("xelatex not found but required for Bengali/fontspec");
+  } else {
+    enginePath = requestedEngine === "xelatex" ? XELATEX : (PDFLATEX || XELATEX);
+    if (!enginePath) return res.status(500).send("No LaTeX engine found");
+  }
+
+  // exam class needs 2 passes for correct point totals
+  const passes = /\\documentclass.*\{exam\}/.test(latex) ? 2 : 1;
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "paper-"));
+  try {
+    let pdfFile;
+    try {
+      pdfFile = compile(latex, enginePath, dir, passes);
     } catch (e) {
-      const logFile = path.join(dir, "doc.log");
-      const log = fs.existsSync(logFile)
-        ? fs.readFileSync(logFile, "utf8").slice(-3000)
-        : String(e);
-      if (!fs.existsSync(pdfFile)) {
-        return res.status(422).json({ error: log });
-      }
+      console.error("Compile failed:\n", String(e).slice(-1500));
+      return res.status(422).send(`LaTeX error:\n${String(e).slice(-4000)}`);
     }
 
-    if (!fs.existsSync(pdfFile)) {
-      return res.status(422).json({ error: "PDF was not created" });
-    }
-    console.log(`✓ PDF compiled with ${compiler}`);
+    const pdfBuffer = fs.readFileSync(pdfFile);
 
-    // Step 2: Convert PDF → PNG
+    // Return PDF directly if requested
+    if (outputFormat === "pdf") {
+      res.set("Content-Type", "application/pdf");
+      return res.send(pdfBuffer);
+    }
+
+    // Otherwise try to convert to PNG
     if (MAGICK) {
-      const result = spawnSync(MAGICK, [
-        "-density", "180", pdfFile,
-        "-background", "white", "-flatten",
-        "-quality", "95", pngFile,
-      ], { timeout: 20000, encoding: "utf8" });
+      const pngFile = path.join(dir, "doc.png");
+      const r = spawnSync(MAGICK, [
+        "-density", "150", pdfFile,
+        "-background", "white", "-flatten", pngFile,
+      ], { timeout: 30_000 });
 
-      if (result.status === 0 && fs.existsSync(pngFile)) {
-        console.log("✓ PNG created");
-        const png = fs.readFileSync(pngFile);
+      if (r.status === 0 && fs.existsSync(pngFile)) {
         res.set("Content-Type", "image/png");
-        return res.send(png);
+        return res.send(fs.readFileSync(pngFile));
       }
-      console.log("✗ magick failed:", result.stderr || result.error);
+      console.warn("magick failed:", r.stderr?.toString());
     }
 
-    // Step 3: Fallback PDF
-    console.log("⚠ Returning PDF as fallback");
-    const pdf = fs.readFileSync(pdfFile);
-    return res.json({ pdf: pdf.toString("base64") });
+    // Fallback: return PDF as base64 JSON (for TikZ diagrams)
+    res.json({ pdf: pdfBuffer.toString("base64") });
 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
+// ── /health ────────────────────────────────────────────────────────────────────
+app.get("/health", (_, res) => res.json({
+  xelatex:  !!XELATEX,
+  pdflatex: !!PDFLATEX,
+  magick:   !!MAGICK,
+}));
+
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`TikZ compiler running on :${PORT} (pdflatex + xelatex)`));
+app.listen(PORT, () => {
+  console.log(`\n🚀 TikZ/Paper compiler on :${PORT}`);
+  console.log(`   xelatex  : ${XELATEX  || "NOT FOUND"}`);
+  console.log(`   pdflatex : ${PDFLATEX || "NOT FOUND"}`);
+  console.log(`   magick   : ${MAGICK   || "NOT FOUND"}`);
+});

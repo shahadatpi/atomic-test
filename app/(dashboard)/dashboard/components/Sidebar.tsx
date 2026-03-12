@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { signOut } from "@/lib/auth-client"
 import {
   X, LayoutDashboard, BookOpen, BarChart2,
-  Settings, LogOut, GraduationCap,
+  Settings, LogOut, GraduationCap, FileText,
 } from "lucide-react"
 import type { DashboardTab } from "../types"
 
@@ -26,6 +26,9 @@ const NAV = [
 export default function Sidebar({ session, tab, isAdmin, onTabChange, onClose }: SidebarProps) {
   const router = useRouter()
 
+  const role       = (session?.user as any)?.role
+  const isTeacher  = role === "teacher" || role === "admin"
+
   const navItem = (label: string, icon: any, t: DashboardTab) => {
     const Icon = icon
     return (
@@ -37,6 +40,19 @@ export default function Sidebar({ session, tab, isAdmin, onTabChange, onClose }:
             ? "bg-muted text-foreground font-medium"
             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         }`}
+      >
+        <Icon className="w-4 h-4" />
+        {label}
+      </button>
+    )
+  }
+
+  const routerItem = (label: string, icon: any, href: string, colorClass: string) => {
+    const Icon = icon
+    return (
+      <button
+        onClick={() => { router.push(href); onClose() }}
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${colorClass}`}
       >
         <Icon className="w-4 h-4" />
         {label}
@@ -75,22 +91,27 @@ export default function Sidebar({ session, tab, isAdmin, onTabChange, onClose }:
           {navItem("Settings", Settings, "settings")}
         </div>
 
-        {/* Admin links */}
+        {/* Teacher section */}
+        {isTeacher && (
+          <div className="pt-2 mt-2 border-t border-border/60 space-y-0.5">
+            <p className="px-3 py-1 text-xs text-muted-foreground/40 font-mono uppercase tracking-wider">
+              শিক্ষক
+            </p>
+            {routerItem(
+              "প্রশ্নপত্র তৈরি",
+              FileText,
+              "/paper-builder",
+              "text-violet-400/80 hover:bg-violet-400/10 hover:text-violet-300"
+            )}
+          </div>
+        )}
+
+        {/* Admin section */}
         {isAdmin && (
           <div className="pt-2 mt-2 border-t border-border/60 space-y-0.5">
             <p className="px-3 py-1 text-xs text-muted-foreground/40 font-mono uppercase tracking-wider">Admin</p>
-            <button
-              onClick={() => { router.push("/admin/problems"); onClose() }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-amber-400/80 hover:bg-amber-400/10 hover:text-amber-300 transition-all"
-            >
-              <BookOpen className="w-4 h-4" /> Problems
-            </button>
-            <button
-              onClick={() => { router.push("/admin/add-problem"); onClose() }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-amber-400/80 hover:bg-amber-400/10 hover:text-amber-300 transition-all"
-            >
-              <LayoutDashboard className="w-4 h-4" /> Add Problem
-            </button>
+            {routerItem("Problems",    BookOpen,        "/admin/problems",    "text-amber-400/80 hover:bg-amber-400/10 hover:text-amber-300")}
+            {routerItem("Add Problem", LayoutDashboard, "/admin/add-problem", "text-amber-400/80 hover:bg-amber-400/10 hover:text-amber-300")}
           </div>
         )}
       </nav>

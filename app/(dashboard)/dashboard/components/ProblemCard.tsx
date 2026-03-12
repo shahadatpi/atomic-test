@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CheckCircle, XCircle, Loader2, BookOpen } from "lucide-react"
+import { Loader2, BookOpen } from "lucide-react"
 import MathText from "../../../../components/math/MathText"
+import { OptionsGrid } from "@/components/shared/OptionsGrid"
 import DifficultyBadge from "./DifficultyBadge"
 import type { Problem } from "../types"
 
@@ -24,7 +25,7 @@ export default function ProblemCard({
   const [showHint,  setShowHint]  = useState(false)
   const [saving,    setSaving]    = useState(false)
 
-  // ✅ Reset state when the problems changes
+  // ✅ Reset state when the problem changes
   useEffect(() => {
     setSelected(null)
     setRevealed(false)
@@ -97,43 +98,22 @@ export default function ProblemCard({
           <MathText text={problem.question} />
         </div>
 
-        {/* Options — 2×2 grid */}
-        <div className="grid grid-cols-2 gap-2">
-          {(["a", "b", "c", "d"] as const).map(key => {
-            const value     = problem[`option_${key}`]
-            const isCorrect = revealed && key === problem.correct_answer
-            const isWrong   = revealed && key === selected && key !== problem.correct_answer
-
-            return (
-                <button
-                    key={key}
-                    onClick={() => { if (!revealed) setSelected(key) }}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border
-                          text-left text-sm transition-all ${
-                        isCorrect       ? "border-emerald-400 bg-emerald-400/10 text-emerald-300"
-                            : isWrong       ? "border-red-400    bg-red-400/10    text-red-300"
-                                : selected===key? "border-zinc-500   bg-muted      text-foreground"
-                                    :                 "border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-foreground/80"
-                    }`}
-                >
-              <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center
-                                text-xs font-mono font-bold uppercase ${
-                  isCorrect       ? "bg-emerald-400 text-zinc-950"
-                      : isWrong       ? "bg-red-400    text-foreground"
-                          : selected===key? "bg-zinc-600   text-foreground"
-                              :                 "bg-muted   text-muted-foreground/70"
-              }`}>
-                {key}
-              </span>
-                  <span className="flex-1 text-xs leading-snug">
-                <MathText text={value} />
-              </span>
-                  {isCorrect && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                  {isWrong   && <XCircle    className="w-3.5 h-3.5 text-red-400    shrink-0" />}
-                </button>
-            )
-          })}
-        </div>
+        {(problem.problem_type?.includes("mcq") && !!problem.option_a) && (
+          <OptionsGrid
+            variant="practice"
+            options={[
+              { key: "a", value: problem.option_a },
+              { key: "b", value: problem.option_b },
+              { key: "c", value: problem.option_c },
+              { key: "d", value: problem.option_d },
+            ]}
+            selected={selected}
+            revealed={revealed}
+            correctKey={problem.correct_answer}
+            disabled={revealed}
+            onSelect={key => setSelected(key)}
+          />
+        )}
 
         {/* Hint toggle */}
         {!revealed && problem.hint && (

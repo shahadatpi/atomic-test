@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, CheckCircle, Pencil, Trash2 } from "lucide-react"
+import { ChevronDown, Pencil, Trash2 } from "lucide-react"
 import MathText, { stripTikz } from "@/components/math/MathText"
+import { OptionsGrid } from "@/components/shared/OptionsGrid"
 import { DiffBadge }  from "./DiffBadge"
 import { EditModal }  from "./EditModal"
 import { parseInstTag, instColorClass } from "./constants"
@@ -113,31 +114,21 @@ export function ProblemCard({ problem: init, number, onDelete }: ProblemCardProp
         {expanded && (
           <div className="border-t border-zinc-800 px-5 py-4 space-y-3">
 
-            {/* Options grid */}
-            <div className="grid grid-cols-2 gap-2">
-              {(["a", "b", "c", "d"] as const).map(opt => {
-                const text      = problem[`option_${opt}` as keyof Problem] as string
-                const isCorrect = problem.correct_answer === opt
-                return (
-                  <div key={opt} className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border text-sm ${
-                    isCorrect
-                      ? "border-emerald-400/40 bg-emerald-400/5 text-emerald-300"
-                      : "border-zinc-800 text-zinc-400"
-                  }`}>
-                    <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center
-                                      text-xs font-bold font-mono mt-0.5 ${
-                      isCorrect ? "bg-violet-500 text-white" : "bg-zinc-800 text-zinc-500"
-                    }`}>
-                      {opt.toUpperCase()}
-                    </span>
-                    <span className="flex-1 text-xs leading-relaxed">
-                      <MathText text={text} />
-                    </span>
-                    {isCorrect && <CheckCircle className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />}
-                  </div>
-                )
-              })}
-            </div>
+            {/* Options grid — only for MCQ types */}
+            {(problem.problem_type?.includes("mcq") && !!problem.option_a) && (
+              <OptionsGrid
+                variant="admin"
+                options={[
+                  { key: "a", value: problem.option_a },
+                  { key: "b", value: problem.option_b },
+                  { key: "c", value: problem.option_c },
+                  { key: "d", value: problem.option_d },
+                ]}
+                revealed={true}
+                correctKey={problem.correct_answer}
+                disabled={true}
+              />
+            )}
 
             {/* Explanation toggle */}
             {problem.explanation && (

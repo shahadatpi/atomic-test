@@ -310,8 +310,13 @@ export default function ProblemEditor() {
     if (data) { setSubtopics(s => [...s, data]); set("subtopic_id", data.id); }
   };
 
+  const isMCQType = (t: ProblemType) => t === "board_mcq" || t === "admission_mcq";
+  const isCQType  = (t: ProblemType) => t === "board_cq";
+
   const handleSubmit = async () => {
-    const required: (keyof FormState)[] = ["subject_id","topic_id","question","option_a","option_b","option_c","option_d"];
+    const base: (keyof FormState)[] = ["subject_id","topic_id","question"];
+    const mcqRequired: (keyof FormState)[] = ["option_a","option_b","option_c","option_d"];
+    const required = isMCQType(form.problem_type) ? [...base, ...mcqRequired] : base;
     for (const key of required) {
       if (!form[key]) { setStatus("error"); setErrMsg(`Please fill in: ${key.replace("_"," ")}`); return; }
     }
@@ -319,8 +324,12 @@ export default function ProblemEditor() {
     const tags = form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
     const { error } = await supabase.from("problems").insert({
       subject_id: form.subject_id, topic_id: form.topic_id, subtopic_id: form.subtopic_id || null,
-      question: form.question, option_a: form.option_a, option_b: form.option_b,
-      option_c: form.option_c, option_d: form.option_d, correct_answer: form.correct_answer,
+      question: form.question,
+      option_a: (isMCQType(form.problem_type) || isCQType(form.problem_type)) ? form.option_a : "",
+      option_b: (isMCQType(form.problem_type) || isCQType(form.problem_type)) ? form.option_b : "",
+      option_c: (isMCQType(form.problem_type) || isCQType(form.problem_type)) ? form.option_c : "",
+      option_d: (isMCQType(form.problem_type) || isCQType(form.problem_type)) ? form.option_d : "",
+      correct_answer: isMCQType(form.problem_type) ? form.correct_answer : "a",
       explanation: form.explanation || null, hint: form.hint || null,
       difficulty: form.difficulty, is_free: form.is_free,
       problem_type: form.problem_type,
@@ -453,10 +462,12 @@ export default function ProblemEditor() {
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
           <p className="text-xs text-muted-foreground font-mono tracking-widest">QUESTION</p>
           <LaTeXField label="Question text" value={form.question} onChange={v => set("question", v)}
-            placeholder="Use $...$ for inline math, $$...$$ for block math" rows={4} hint="LaTeX supported" />
+            placeholder="Use $...$ for inline math, $$...$$ for block math"
+            rows={isCQType(form.problem_type) ? 10 : 4} hint="LaTeX supported" />
         </div>
 
-        {/* Options */}
+        {/* Options — only shown for MCQ types */}
+        {isMCQType(form.problem_type) && (
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
           <p className="text-xs text-muted-foreground font-mono tracking-widest">OPTIONS</p>
           <div className="space-y-3">
@@ -481,6 +492,39 @@ export default function ProblemEditor() {
           </div>
           <p className="text-xs text-muted-foreground/50">Click the letter button to mark as correct answer</p>
         </div>
+        )} {/* end MCQ options */}
+
+        {/* CQ sub-questions — ক খ গ ঘ */}
+        {isCQType(form.problem_type) && (
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground font-mono tracking-widest">সৃজনশীল প্রশ্ন</p>
+            <span className="text-xs text-emerald-400/70">ক · খ · গ · ঘ</span>
+          </div>
+          {([
+            { key: "option_a" as const, label: "ক", mark: "১" },
+            { key: "option_b" as const, label: "খ", mark: "২" },
+            { key: "option_c" as const, label: "গ", mark: "৩" },
+            { key: "option_d" as const, label: "ঘ", mark: "৪" },
+          ]).map(({ key, label, mark }) => (
+            <div key={key} className="flex items-start gap-3">
+              <div className="mt-3 w-8 h-8 shrink-0 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                <span className="text-sm font-bold text-emerald-400">{label}</span>
+              </div>
+              <div className="flex-1">
+                <LaTeXField
+                  label={label}
+                  value={form[key]}
+                  onChange={v => set(key, v)}
+                  placeholder={`${label} — LaTeX সাপোর্টেড`}
+                  rows={3}
+                />
+              </div>
+              <span className="mt-3 text-xs font-mono text-muted-foreground pt-2">{mark} নম্বর</span>
+            </div>
+          ))}
+        </div>
+        )} {/* end CQ sub-questions */}
 
         {/* Solution */}
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
@@ -512,6 +556,7 @@ export default function ProblemEditor() {
               }`}>{form.is_free ? "Free" : "Pro"}</span>
             </div>
             <div className="text-foreground text-base leading-relaxed"><MathText text={form.question} /></div>
+            {isMCQType(form.problem_type) && (
             <div className="space-y-2">
               {OPTIONS.map(({ key, label }) => {
                 const answerKey = label.toLowerCase() as Answer;
@@ -529,6 +574,7 @@ export default function ProblemEditor() {
                 );
               })}
             </div>
+            )}
             {form.explanation && (
               <div className="border-t border-border pt-4 space-y-2">
                 <p className="text-xs text-violet-400 font-mono">EXPLANATION</p>
