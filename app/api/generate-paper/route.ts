@@ -32,44 +32,18 @@ interface PaperFormat {
 function tex(text: string | null | undefined): string {
   if (!text) return "";
   let r = text;
-
-  // 1. Decode custom app tokens
+  // Decode app tokens
   r = r.replace(/%%TIKZ:([^%]+)%%/gs, (_, e) => { try { return decodeURIComponent(e); } catch { return ""; } });
   r = r.replace(/%%DM:([^%]+)%%/gs,   (_, e) => { try { return `\\[${decodeURIComponent(e)}\\]`; } catch { return ""; } });
   r = r.replace(/%%IM:([^%]+)%%/gs,   (_, e) => { try { return `\\(${decodeURIComponent(e)}\\)`; } catch { return ""; } });
-  r = r.replace(/%%BOX:([^%]*)%%/g,   (_, t) => `\\fbox{${t}}`);
+  r = r.replace(/%%BOX:([^%]*)%%/g,   (_, t) => t);
   r = r.replace(/%%LIST:[^%]*%%/g, "");
-
-  // 2. Already-LaTeX math delimiters — pass through unchanged
-  // \[ ... \] and \( ... \) are already valid LaTeX, leave them
-
-  // 3. $$ → \[ \] (display math)
+  // $$ → \[ \]
   r = r.replace(/\$\$([\s\S]*?)\$\$/g, (_, m) => `\\[${m}\\]`);
-
-  // 4. $ → \( \) (inline math) — skip already-escaped dollars
-  r = r.replace(/(?<!\\)(?<!\$)\$(?!\$)((?:[^$\\]|\\[\s\S])*?)\$(?!\$)/g, (_, m) => `\\(${m}\\)`);
-
-  // 5. Literal \n → paragraph break, but ONLY outside TikZ environments.
-  //    Inside tikz/circuitikz blocks, \n is a valid variable name (\foreach \n in {...})
-  //    and blank lines break \pgffor. So we extract tikz blocks, process outside, restore.
-  {
-    const TIKZ_RE = /\\begin\{(tikzpicture|circuitikz)[^}]*\}[\s\S]*?\\end\{\1\}/g;
-    const tikzBlocks: string[] = [];
-    // Stash tikz blocks as placeholders
-    r = r.replace(TIKZ_RE, (match) => {
-      tikzBlocks.push(match);
-      return `%%TIKZBLOCK_${tikzBlocks.length - 1}%%`;
-    });
-    // Now safe to replace \n outside tikz
-    r = r.replace(/\\n(?![a-zA-Z{])/g, "\n\n");
-    // Restore tikz blocks verbatim (no newline changes inside)
-    r = r.replace(/%%TIKZBLOCK_(\d+)%%/g, (_, i) => tikzBlocks[parseInt(i)]);
-  }
-
-  // 6. Bold/italic markdown → LaTeX
-  r = r.replace(/\*\*([^*]+)\*\*/g, "\\textbf{$1}");
-  r = r.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "\\textit{$1}");
-
+  // $ → \( \)
+  r = r.replace(/(?<!\$)\$(?!\$)((?:[^$\\]|\\[\s\S])*?)\$(?!\$)/g, (_, m) => `\\(${m}\\)`);
+  // Literal \n → real newlines
+  r = r.replace(/\\n(?![a-zA-Z{])/g, "\n");
   return r.trim();
 }
 
@@ -78,38 +52,8 @@ function isMCQ(p: Problem): boolean {
   return !!(p.option_a || p.option_b);
 }
 
-function isCQ(p: Problem): boolean {
-  return p.problem_type === "board_cq";
-}
-
 function cqBlock(problems: Problem[]): string {
-  return problems.map((p, i) => {
-    const qnum = i + 1;
-    const lines: string[] = [];
-
-    if (isCQ(p)) {
-      // CQ format: numbered, uddharan (context) then ক খ গ ঘ with marks on right
-      lines.push(`\\question[10] ${tex(p.question)}`);
-      const subs = [
-        { label: "ক", mark: 1, val: p.option_a },
-        { label: "খ", mark: 2, val: p.option_b },
-        { label: "গ", mark: 3, val: p.option_c },
-        { label: "ঘ", mark: 4, val: p.option_d },
-      ].filter(s => s.val?.trim());
-
-      if (subs.length > 0) {
-        lines.push("\\begin{cqparts}");
-        for (const s of subs) {
-          lines.push(`  \\cqpart{${s.label}}{${s.mark}}{${tex(s.val!)}}`);
-        }
-        lines.push("\\end{cqparts}");
-      }
-    } else {
-      lines.push(`\\question ${tex(p.question)}`);
-    }
-
-    return lines.join("\n") + "\n";
-  }).join("\n");
+  return problems.map(p => `\\question ${tex(p.question)}\n`).join("\n");
 }
 
 function mcqBlock(problems: Problem[], showAns: boolean): string {
@@ -138,21 +82,9 @@ function buildDocument(problems: Problem[], fmt: PaperFormat): string {
   const dateLine = fmt.examDate?.trim()
     ? `\\\\\n{\\small ${fmt.examDate.trim()}}` : "";
 
-  const cqTotalMarks = cqList.reduce((s, p) => s + (p.customMarks ?? 10), 0);
   const cqSection = cqList.length > 0 ? `
 %% ── Creative Questions ──────────────────────────────────────────────────────
-\\begin{center}
-{\\large\\bfseries সৃজনশীল প্রশ্ন}
-\\end{center}
-\\vspace{2pt}
-\\begin{tabular*}{\\textwidth}{@{\\extracolsep{\\fill}}lr}
-{\\small যেকোনো ${Math.min(cqList.length, 7)}টি প্রশ্নের উত্তর দাও।} & {\\small প্রতিটি প্রশ্নের মান ১০}
-\\end{tabular*}
-\\vspace{4pt}
-\\hrule
-\\vspace{6pt}
 \\begin{questions}
-\\qformat{\\textbf{প্রশ্ন \\thequestion.}\\hfill}
 ${cqBlock(cqList)}
 \\end{questions}
 
@@ -162,20 +94,13 @@ ${cqBlock(cqList)}
   const mcqSection = mcqList.length > 0 ? `
 %% ── MCQ Section ─────────────────────────────────────────────────────────────
 \\begin{center}
-{\\large\\bfseries নৈর্ব্যক্তিক প্রশ্ন}
+{\\Large নৈর্ব্যক্তিক প্রশ্ন}
 \\end{center}
-\\vspace{2pt}
-\\begin{tabular*}{\\textwidth}{@{\\extracolsep{\\fill}}lr}
-{\\small প্রতিটি প্রশ্নের মান ১} & {\\small মোট নম্বর: ${mcqList.length}}
-\\end{tabular*}
-\\vspace{4pt}
-\\hrule
-\\vspace{6pt}
+
 \\begin{multicols}{2}
-\\setlength{\\columnseprule}{0.4pt}
-\\setlength{\\columnsep}{1.5em}
+\\setlength{\\columnseprule}{1pt}
+\\setlength{\\columnsep}{2em}
 \\begin{questions}
-\\qformat{\\textbf{\\thequestion.}\\hfill}
 ${mcqBlock(mcqList, showAns)}
 \\end{questions}
 \\end{multicols}
@@ -190,72 +115,30 @@ ${mcqBlock(mcqList, showAns)}
 \\usepackage{graphicx,adjustbox}
 \\usepackage{tasks}[newest]
 \\usepackage{draftwatermark}
-\\usepackage{enumitem}
-\\usepackage[top=0.6in,left=0.65in,right=0.65in,bottom=0.75in]{geometry}
+\\usepackage[top=.5in,left=0.5in,right=0.5in,bottom=0.75in]{geometry}
 
 %% ── TikZ ─────────────────────────────────────────────────────────────────────
 \\usepackage{tikz,pgfplots}
 \\pgfplotsset{compat=1.18}
-\\usetikzlibrary{angles,quotes,positioning,calc,decorations.markings,arrows.meta}
+\\usetikzlibrary{angles,quotes,positioning,calc,decorations.markings}
 \\usepackage[americanvoltages,fulldiodes,siunitx,nooldvoltagedirection,RPvoltages]{circuitikz}
 \\ctikzset{resistors/scale=0.8,capacitors/scale=0.7,diodes/scale=0.7,transistors/scale=1.3,voltage=american}
 
-%% ── Custom TikZ commands ─────────────────────────────────────────────────────
-%% \arrowIn — used as node content on TikZ paths to show arrow direction
-\\tikzset{
-  arrowInStyle/.style={
-    decoration={markings,mark=at position 0.5 with {\\arrow[scale=1.5]{>}}},
-    postaction={decorate}
-  }
-}
-\\newcommand{\\arrowIn}{$\\rightarrow$}
-
-%% ── Bengali fonts ───────────────────────────────────────────────────────────
+%% ── Bengali fonts ────────────────────────────────────────────────────────────
+%% Kalpurush if available (local + Render with fonts/), else Noto Sans Bengali
 \\usepackage{fontspec}
 \\usepackage{polyglossia}
 \\setmainlanguage{bengali}
 \\setotherlanguage{english}
-%% Try Kalpurush first, fall back to any available Bengali-capable font
 \\IfFontExistsTF{Kalpurush}{
   \\setmainfont[Script=Bengali]{Kalpurush}
-  \\newfontfamily\\bengalifont[Script=Bengali]{Kalpurush}
 }{
-  \\IfFontExistsTF{Noto Serif Bengali}{
-    \\setmainfont[Script=Bengali]{Noto Serif Bengali}
-    \\newfontfamily\\bengalifont[Script=Bengali]{Noto Serif Bengali}
-  }{
-    \\IfFontExistsTF{SolaimanLipi}{
-      \\setmainfont[Script=Bengali]{SolaimanLipi}
-      \\newfontfamily\\bengalifont[Script=Bengali]{SolaimanLipi}
-    }{
-      \\newfontfamily\\bengalifont{FreeSerif}
-    }
-  }
+  \\setmainfont[Script=Bengali]{Noto Sans Bengali}
 }
-\\IfFontExistsTF{Siyam Rupali}{
-  \\newfontfamily\\bengalitermfont[Script=Bengali]{Siyam Rupali}
-}{\\let\\bengalitermfont\\bengalifont}
 
 %% ── Tasks & Watermark ────────────────────────────────────────────────────────
 \\newcommand*\\tasklabelformat[1]{#1.}
 \\settasks{label=\\Alph*,label-format=\\tasklabelformat,label-width=12pt}
-
-%% ── CQ sub-question parts: ক খ গ ঘ with mark on right ──────────────────────
-%% Override exam class \part to suppress (a)/(b) and point display entirely
-\\renewcommand{\\partlabel}{\\relax}
-\\pointsinrightmargin
-\\bracketedpoints
-\\noprintanswers
-%% \\cqpart{label}{mark}{text} — renders as:  ক.  <text>  \\hfill  mark
-\\newcommand{\\cqpart}[3]{%
-  \\item[{\\textbf{#1.}}] #3 \\hfill \\textbf{#2}%
-}
-%% cqparts: enumitem list — bypasses exam class parts entirely
-\\newenvironment{cqparts}{%
-  \\begin{enumerate}[label={},leftmargin=2em,itemsep=5pt,topsep=6pt,parsep=0pt]%
-}{%
-  \\end{enumerate}%
-}
 \\SetWatermarkText{${wm}}
 \\SetWatermarkScale{.5}
 \\SetWatermarkLightness{0.9}
@@ -265,15 +148,12 @@ ${mcqBlock(mcqList, showAns)}
 
 %% ── Header ───────────────────────────────────────────────────────────────────
 \\begin{center}
-${institutionLine}{\\LARGE\\bfseries ${fmt.examTitle?.trim() || "পরীক্ষার প্রশ্নপত্র"}}\\\\[3pt]
-{\\large ${fmt.subject?.trim() || ""}}\\\\[6pt]
+${institutionLine}{\\Large ${fmt.examTitle?.trim() || "পরীক্ষার প্রশ্নপত্র"}}\\\\[2pt]
+{\\large ${fmt.subject?.trim() || ""}}\\\\[4pt]
+সময়ঃ ${fmt.time?.trim() || "৩ ঘন্টা"} \\hfill পূর্ণমানঃ ${marks}${dateLine}
 \\end{center}
-\\noindent\\begin{tabular*}{\\textwidth}{@{}l@{\\extracolsep{\\fill}}r@{}}
-সময়ঃ ${fmt.time?.trim() || "৩ ঘন্টা"} & পূর্ণমানঃ ${marks}${dateLine}
-\\end{tabular*}
-\\vspace{2pt}
-\\hrule\\hrule
-\\vspace{8pt}
+\\rule{\\textwidth}{0.4pt}
+\\vspace{4pt}
 ${cqSection}${mcqSection}
 \\end{document}`;
 }
@@ -308,18 +188,6 @@ export async function POST(req: NextRequest) {
   }
 
   const tikzUrl = process.env.TIKZ_SERVICE_URL ?? "http://localhost:3001";
-
-  // Wake up Render free tier — cold start can take 50-60s
-  // Poll /health every 3s for up to 90s before giving up
-  const wakeDeadline = Date.now() + 90_000;
-  while (Date.now() < wakeDeadline) {
-    try {
-      const r = await fetch(`${tikzUrl}/health`, { signal: AbortSignal.timeout(15_000) });
-      if (r.ok) break;
-    } catch {}
-    await new Promise(r => setTimeout(r, 3000));
-  }
-
   let res: Response;
   try {
     res = await fetch(`${tikzUrl}/compile`, {
@@ -333,13 +201,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (!res.ok) {
-    let errText = await res.text();
-    // tikz-service returns JSON { error: "..." } since latest version
-    try {
-      const json = JSON.parse(errText);
-      if (json.error) errText = json.error;
-    } catch {}
-    return new NextResponse(`LaTeX error:\n\n${errText}`, { status: 500 });
+    const err = await res.text();
+    return new NextResponse(`LaTeX error:\n\n${err.slice(-4000)}`, { status: 500 });
   }
 
   const pdf      = await res.arrayBuffer();
