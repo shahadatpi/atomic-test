@@ -246,15 +246,15 @@ ${mcqBlock(mcqList, showAns)}
 \\pointsinrightmargin
 \\bracketedpoints
 \\noprintanswers
-%% \cqpart{label}{mark}{text} — renders as:  ক.  <text>  \hfill  mark
+%% \\cqpart{label}{mark}{text} — renders as:  ক.  <text>  \\hfill  mark
 \\newcommand{\\cqpart}[3]{%
-  \\item[\\textbf{#1.}] #3 \\hfill \\textbf{#2}%
+  \\item[{\\textbf{#1.}}] #3 \\hfill \\textbf{#2}%
 }
-%% Use a list environment instead of exam's parts for full control
+%% cqparts: enumitem list — bypasses exam class parts entirely
 \\newenvironment{cqparts}{%
-  \\begin{list}{}{\\setlength{\\leftmargin}{1.2em}\\setlength{\\itemsep}{4pt}\\setlength{\\topsep}{6pt}}%
+  \\begin{enumerate}[label={},leftmargin=2em,itemsep=5pt,topsep=6pt,parsep=0pt]%
 }{%
-  \\end{list}%
+  \\end{enumerate}%
 }
 \\SetWatermarkText{${wm}}
 \\SetWatermarkScale{.5}
@@ -322,7 +322,21 @@ export async function POST(req: NextRequest) {
 
   if (!res.ok) {
     const err = await res.text();
-    return new NextResponse(`LaTeX error:\n\n${err.slice(-4000)}`, { status: 500 });
+    // Extract the most useful part: lines containing "!" (LaTeX errors) + surrounding context
+    const lines = err.split("\n");
+    const errorLines: string[] = [];
+    lines.forEach((line, i) => {
+      if (line.startsWith("!") || line.includes("Error") || line.includes("Undefined") || line.includes("Missing") || line.includes("Runaway") || line.includes("l.")) {
+        // Grab surrounding context: 3 lines before and after
+        const start = Math.max(0, i - 3);
+        const end   = Math.min(lines.length - 1, i + 5);
+        errorLines.push(...lines.slice(start, end + 1), "---");
+      }
+    });
+    const summary = errorLines.length > 0
+      ? errorLines.slice(0, 80).join("\n")
+      : err.slice(-5000); // fallback: last 5000 chars
+    return new NextResponse(`LaTeX error:\n\n${summary}`, { status: 500 });
   }
 
   const pdf      = await res.arrayBuffer();
