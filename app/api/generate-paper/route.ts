@@ -309,14 +309,15 @@ export async function POST(req: NextRequest) {
 
   const tikzUrl = process.env.TIKZ_SERVICE_URL ?? "http://localhost:3001";
 
-  // Wake up Render service if cold (ping /health first, retry up to 3x)
-  for (let i = 0; i < 3; i++) {
+  // Wake up Render free tier — cold start can take 50-60s
+  // Poll /health every 3s for up to 90s before giving up
+  const wakeDeadline = Date.now() + 90_000;
+  while (Date.now() < wakeDeadline) {
     try {
-      await fetch(`${tikzUrl}/health`, { signal: AbortSignal.timeout(10_000) });
-      break;
-    } catch {
-      if (i < 2) await new Promise(r => setTimeout(r, 3000));
-    }
+      const r = await fetch(`${tikzUrl}/health`, { signal: AbortSignal.timeout(15_000) });
+      if (r.ok) break;
+    } catch {}
+    await new Promise(r => setTimeout(r, 3000));
   }
 
   let res: Response;

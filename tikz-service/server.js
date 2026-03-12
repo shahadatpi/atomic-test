@@ -133,6 +133,15 @@ app.listen(PORT, () => {
 // ── Font setup in background (non-blocking) ───────────────────────────────────
 setupFonts().catch(e => console.error("Font setup error:", e));
 
+// ── Self-ping every 10 min to prevent Render free tier sleep ─────────────────
+if (IS_LINUX) {
+  setInterval(async () => {
+    try {
+      await fetch(`http://localhost:${PORT}/health`);
+    } catch {}
+  }, 10 * 60 * 1000); // every 10 minutes
+}
+
 async function setupFonts() {
   if (IS_WINDOWS) {
     try {
