@@ -35,6 +35,7 @@ export interface Problem {
   source:         string | null
   created_at?:    string
   subtopic_id?:   string | null
+  problem_type?:  string | null
   subjects:       { name: string }
   topics:         { name: string }
   subtopics?:     { name: string } | null
