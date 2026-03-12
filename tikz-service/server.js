@@ -205,9 +205,12 @@ app.post("/compile", (req, res) => {
     }
 
     const pdfBuffer = fs.readFileSync(pdfFile);
+    // Cleanup helper — called after response finishes
+    const cleanup = () => fs.rmSync(dir, { recursive: true, force: true });
 
     if (outputFormat === "pdf") {
       res.set("Content-Type", "application/pdf");
+      res.on("finish", cleanup);
       return res.send(pdfBuffer);
     }
 
@@ -219,16 +222,20 @@ app.post("/compile", (req, res) => {
       ], { timeout: 30_000 });
 
       if (r.status === 0 && fs.existsSync(pngFile)) {
+        const pngBuf = fs.readFileSync(pngFile);
         res.set("Content-Type", "image/png");
-        return res.send(fs.readFileSync(pngFile));
+        res.on("finish", cleanup);
+        return res.send(pngBuf);
       }
       console.warn("magick failed:", r.stderr?.toString());
     }
 
+    res.on("finish", cleanup);
     res.json({ pdf: pdfBuffer.toString("base64") });
 
-  } finally {
+  } catch (outerErr) {
     fs.rmSync(dir, { recursive: true, force: true });
+    throw outerErr;
   }
 });
 
