@@ -73,6 +73,7 @@ function preprocessText(text: string): string {
     .replace(/\\mathlarger\{([^}]*)\}/g,    (_, m) => m)
     .replace(/\\boxed\{([^}]*)\}/g, (_, m) =>
       /^[0-9+\-*/=^_.,() \\]+$/.test(m) ? `%%DM:${encodeURIComponent(`\\boxed{${m}}`)}%%` : `%%BOX:${m}%%`)
+    .replace(/\\say\{([^}]*)\}/g,       (_, m) => `\u201c${m}\u201d`)  // "text"
     .replace(/\\textbf\{([^}]*)\}/g,    (_, m) => `**${m}**`)
     .replace(/\\textit\{([^}]*)\}/g,    (_, m) => `_${m}_`)
     .replace(/\\texttt\{([^}]*)\}/g,    (_, m) => `\`${m}\``)
