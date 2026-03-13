@@ -122,6 +122,8 @@ ${mcqBlock(mcqList, showAns)}
 \\pgfplotsset{compat=1.18}
 \\usetikzlibrary{angles,quotes,positioning,calc,decorations.markings}
 \\usepackage[americanvoltages,fulldiodes,siunitx,nooldvoltagedirection,RPvoltages]{circuitikz}
+\\usepackage{dirtytalk}
+\\usetikzlibrary{shapes,arrows.meta,patterns,decorations.pathmorphing,decorations.markings}
 \\ctikzset{resistors/scale=0.8,capacitors/scale=0.7,diodes/scale=0.7,transistors/scale=1.3,voltage=american}
 
 %% ── Bengali fonts ────────────────────────────────────────────────────────────
@@ -135,6 +137,53 @@ ${mcqBlock(mcqList, showAns)}
 }{
   \\setmainfont[Script=Bengali]{Noto Sans Bengali}
 }
+
+%% ── TikZ helpers ────────────────────────────────────────────────────────────
+\\tikzset{
+  directed/.style={postaction={decorate,decoration={markings,
+    mark=at position .65 with {\\arrow{stealth}}}}},
+  mid arrow/.style={postaction={decorate,decoration={markings,
+    mark=at position .5 with {\\arrow[#1]{stealth}}}}},
+}
+\\newcommand{\\arrowIn}{%
+  \\tikz \\draw[-stealth] (-1pt,0) -- (1pt,0);%
+}
+
+%% ── CircuiTikZ rbulb bipole ──────────────────────────────────────────────────
+\\makeatletter
+\\pgfcircdeclarebipolescaled{misc}
+  {}{}
+  {rbulb}
+  {\\ctikzvalof{bipoles/bulb/height}}{\\ctikzvalof{bipoles/bulb/width}}
+{%
+  \\pgf@circ@setlinewidth{bipoles}{\\pgfstartlinewidth}
+  \\pgfpathellipse{\\pgfpointorigin}
+    {\\pgfpoint{0}{0.8\\pgf@circ@res@up}}
+    {\\pgfpoint{0.8\\pgf@circ@res@left}{0}}
+  \\pgf@circ@draworfill
+  \\pgfpathmoveto{\\pgfpoint{\\pgf@circ@res@left}{\\pgf@circ@res@zero}}
+  \\pgfpathlineto{\\pgfpoint{0.8\\pgf@circ@res@left}{\\pgf@circ@res@zero}}
+  \\pgfpathcurveto
+    {\\pgfpoint{0.5\\pgf@circ@res@left}{+0pt}}
+    {\\pgfpoint{0.4\\pgf@circ@res@left}{0.6\\pgf@circ@res@left}}
+    {\\pgfpoint{+0pt}{+0pt}}
+  \\pgfpathcurveto
+    {\\pgfpoint{.2\\pgf@circ@res@right}{.2\\pgf@circ@res@right}}
+    {\\pgfpoint{.2\\pgf@circ@res@right}{0.6\\pgf@circ@res@right}}
+    {\\pgfpoint{+0pt}{0.6\\pgf@circ@res@right}}
+  \\pgfpathcurveto
+    {\\pgfpoint{.2\\pgf@circ@res@left}{0.6\\pgf@circ@res@right}}
+    {\\pgfpoint{.2\\pgf@circ@res@left}{.2\\pgf@circ@res@right}}
+    {\\pgfpoint{+0pt}{+0pt}}
+  \\pgfpathcurveto
+    {\\pgfpoint{0.4\\pgf@circ@res@right}{0.6\\pgf@circ@res@left}}
+    {\\pgfpoint{0.5\\pgf@circ@res@right}{+0pt}}
+    {\\pgfpoint{0.8\\pgf@circ@res@right}{\\pgf@circ@res@zero}}
+  \\pgfpathlineto{\\pgfpoint{\\pgf@circ@res@right}{\\pgf@circ@res@zero}}
+  \\pgfusepath{draw}
+}%
+\\pgfcirc@activate@bipole@simple{l}{rbulb}
+\\makeatother
 
 %% ── Tasks & Watermark ────────────────────────────────────────────────────────
 \\newcommand*\\tasklabelformat[1]{#1.}
