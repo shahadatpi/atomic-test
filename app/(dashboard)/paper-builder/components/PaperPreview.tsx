@@ -81,7 +81,8 @@ export default function PaperPreview({ selected, format, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border flex-shrink-0">
+      <div className="flex flex-col gap-2 px-4 py-3 bg-card border-b border-border flex-shrink-0 sm:flex-row sm:items-center sm:justify-between">
+        {/* Row 1: close + title */}
         <div className="flex items-center gap-3">
           <button onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-accent/50 transition-colors text-muted-foreground hover:text-foreground">
@@ -95,7 +96,8 @@ export default function PaperPreview({ selected, format, onClose }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Row 2 (mobile) / same row (desktop): action buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => openSide("debug")}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg transition-colors ${sideTab === "debug" ? "border-amber-400/50 text-amber-400 bg-amber-400/10" : "border-border text-muted-foreground hover:bg-accent/50"}`}>
             <Bug className="w-3.5 h-3.5" /> ডিবাগ
@@ -111,7 +113,7 @@ export default function PaperPreview({ selected, format, onClose }: Props) {
             </button>
           )}
           <button onClick={download} disabled={(status as string) !== "ready"}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors">
+            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors ml-auto sm:ml-0">
             <Download className="w-4 h-4" /> ডাউনলোড
           </button>
         </div>

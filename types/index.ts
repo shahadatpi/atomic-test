@@ -31,11 +31,11 @@ export interface Problem {
   hint:           string | null
   difficulty:     "easy" | "medium" | "hard"
   is_free:        boolean
+  problem_type:   string | null
   tags:           string[] | null
   source:         string | null
   created_at?:    string
   subtopic_id?:   string | null
-  problem_type?:  string | null
   subjects:       { name: string }
   topics:         { name: string }
   subtopics?:     { name: string } | null
