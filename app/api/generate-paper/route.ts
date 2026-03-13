@@ -38,12 +38,15 @@ function tex(text: string | null | undefined): string {
   r = r.replace(/%%IM:([^%]+)%%/gs,   (_, e) => { try { return `\\(${decodeURIComponent(e)}\\)`; } catch { return ""; } });
   r = r.replace(/%%BOX:([^%]*)%%/g,   (_, t) => t);
   r = r.replace(/%%LIST:[^%]*%%/g, "");
+  // Strip \begin{center}/\end{center} wrappers — illegal inside exam \question
+  r = r.replace(/\\begin\s*\{center\}/g, "");
+  r = r.replace(/\\end\s*\{center\}/g,   "");
+  r = r.replace(/\\centering\b/g,           "");
   // $$ → \[ \]
   r = r.replace(/\$\$([\s\S]*?)\$\$/g, (_, m) => `\\[${m}\\]`);
   // $ → \( \)
   r = r.replace(/(?<!\$)\$(?!\$)((?:[^$\\]|\\[\s\S])*?)\$(?!\$)/g, (_, m) => `\\(${m}\\)`);
-  // Literal \n → real newlines
-  r = r.replace(/\\n(?![a-zA-Z{])/g, "\n");
+  // \\n is a valid LaTeX command (\\foreach \\n in {}) — never replace it
   return r.trim();
 }
 
@@ -52,8 +55,50 @@ function isMCQ(p: Problem): boolean {
   return !!(p.option_a || p.option_b);
 }
 
+// Bengali numeral converter
+function toBengaliNum(n: number): string {
+  const d = ["০","১","২","৩","৪","৫","৬","৭","৮","৯"];
+  return String(n).replace(/[0-9]/g, c => d[parseInt(c)]);
+}
+
+// Bengali part labels for CQ sub-questions
+const CQ_LABELS = ["ক", "খ", "গ", "ঘ"];
+
+function centerTikz(latexText: string): string {
+  // Wrap any standalone tikzpicture/circuitikz block with \begin{center}
+  return latexText.replace(
+    /(\\begin\{(?:tikzpicture|circuitikz)[^}]*\}[\s\S]*?\\end\{(?:tikzpicture|circuitikz)\})/g,
+    "\n\\begin{center}\n$1\n\\end{center}\n"
+  );
+}
+
 function cqBlock(problems: Problem[]): string {
-  return problems.map(p => `\\question ${tex(p.question)}\n`).join("\n");
+  return problems.map((p) => {
+    const stem = centerTikz(tex(p.question));
+    const opts = [p.option_a, p.option_b, p.option_c, p.option_d]
+      .map(tex).filter(Boolean);
+
+    if (opts.length === 0) {
+      return `\\question ${stem}\n`;
+    }
+
+    // Bangladesh board CQ standard marks: ক=১ খ=২ গ=৩ ঘ=৪
+    const BD_MARKS = [1, 2, 3, 4];
+    const partMarks = opts.map((_, i) => BD_MARKS[i] ?? 1);
+    const total     = partMarks.reduce((s, m) => s + m, 0);
+
+    const partLines = opts.map((txt, i) => {
+      const bnMark = toBengaliNum(partMarks[i]);
+      return `        \\part ${CQ_LABELS[i]}. ${centerTikz(txt)} \\hfill \\textbf{${bnMark}}`;
+    }).join("\n\n");
+
+    const bnTotal = toBengaliNum(total);
+    return `\\question[${total}] ${stem}
+    \\begin{parts}
+${partLines}
+    \\end{parts}
+`;
+  }).join("\n");
 }
 
 function mcqBlock(problems: Problem[], showAns: boolean): string {
@@ -84,11 +129,14 @@ function buildDocument(problems: Problem[], fmt: PaperFormat): string {
 
   const cqSection = cqList.length > 0 ? `
 %% ── Creative Questions ──────────────────────────────────────────────────────
+\\begin{center}
+{\\large\\bfseries সৃজনশীল প্রশ্ন}
+\\end{center}
+\\vspace{4pt}
 \\begin{questions}
 ${cqBlock(cqList)}
 \\end{questions}
 
-\\pagebreak
 ` : "";
 
   const mcqSection = mcqList.length > 0 ? `
@@ -184,6 +232,15 @@ ${mcqBlock(mcqList, showAns)}
 }%
 \\pgfcirc@activate@bipole@simple{l}{rbulb}
 \\makeatother
+
+%% ── Exam class: marks in right margin (board standard) ──────────────────────
+%% Suppress exam class mark printing — we render \hfill\textbf{ক} inline
+\\nopointsinmargin
+\\pointformat{}
+\\noaddpoints
+%% Hide exam class default (a)(b)(c) labels — we write ক. খ. গ. ঘ. inline
+\\renewcommand{\\partlabel}{}
+\\renewcommand{\\partshook}{\\setlength{\\itemsep}{6pt}\\setlength{\\parsep}{0pt}}
 
 %% ── Tasks & Watermark ────────────────────────────────────────────────────────
 \\newcommand*\\tasklabelformat[1]{#1.}
