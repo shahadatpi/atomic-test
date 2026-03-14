@@ -7,6 +7,7 @@ import {
   SlidersHorizontal, X, ChevronDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import MathText, { stripTikz } from "@/components/math/MathText";
+import type { SelectedProblem } from "./types";
 
 function safeTruncate(text: string, max = 160): string {
   const stripped = stripTikz(text);
@@ -48,11 +49,7 @@ export interface Problem {
   subtopics:      { name: string } | null;
 }
 
-export interface SelectedProblem extends Problem {
-  customMarks: number;
-  showAnswer:  boolean;
-  optionCols:  "auto" | "1" | "2";
-}
+
 
 interface Subject { id: string; name: string; }
 interface Topic   { id: string; name: string; subject_id: string; }

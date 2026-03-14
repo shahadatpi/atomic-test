@@ -20,7 +20,7 @@ function safeTruncate(text: string, max = 120): string {
   }
   return stripped.slice(0, lastSafe + 1) + "…";
 }
-import type { SelectedProblem } from "../page";
+import type { SelectedProblem } from "../types";
 
 
 interface Props {
