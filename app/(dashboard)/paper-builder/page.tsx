@@ -203,7 +203,7 @@ function BrowseCard({ problem: p, index, selected, onToggle }: {
   problem: Problem; index: number; selected: boolean; onToggle: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const typeInfo = TYPE_INFO[p.problem_type] ?? { label: p.problem_type, color: "border-zinc-700 bg-zinc-800 text-zinc-400" };
+  const typeInfo = TYPE_INFO[p.problem_type ?? ""] ?? { label: p.problem_type ?? "", color: "border-zinc-700 bg-zinc-800 text-zinc-400" };
   const isMcq    = p.problem_type?.includes("mcq");
 
   return (
