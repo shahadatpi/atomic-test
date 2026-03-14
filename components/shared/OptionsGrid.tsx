@@ -19,38 +19,77 @@ interface OptionsGridProps {
   variant?:    "exam" | "practice" | "admin"
 }
 
+// If any option raw text exceeds this many chars → 1-col immediately
+const CHAR_THRESHOLD = 55
+
+function hasLongOption(options: OptionItem[]) {
+  return options.some(o => (o.value ?? "").replace(/\$[^$]*\$/g, "XX").length > CHAR_THRESHOLD)
+}
+
 export function OptionsGrid({
   options, selected, revealed, correctKey,
   disabled, onSelect, variant = "exam",
 }: OptionsGridProps) {
-  const probeRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  // Default to 2-col; only go 1-col if we detect long content
   const [oneCol, setOneCol] = useState(false)
 
-  // Start in 2-col, measure after KaTeX renders, switch to 1-col if any cell overflows
   useEffect(() => {
-    const el = probeRef.current
+    // Fast path: long raw text → 1-col immediately
+    if (hasLongOption(options)) {
+      setOneCol(true)
+      return
+    }
+
+    setOneCol(false) // reset to 2-col first
+
+    const el = gridRef.current
     if (!el) return
 
     const check = () => {
+      if (!el) return
+
+      // Force 2-col layout temporarily so we can measure accurately
+      el.classList.remove("grid-cols-1")
+      el.classList.add("grid-cols-2")
+
+      let needsOneCol = false
+
+      // Check each cell: clone it without overflow-hidden to measure natural width
       const cells = el.querySelectorAll<HTMLElement>("[data-option-cell]")
-      let overflow = false
       cells.forEach(cell => {
-        if (cell.scrollWidth > cell.clientWidth + 2) overflow = true
+        // The cell's natural scrollWidth vs its constrained clientWidth
+        // Remove overflow-hidden temporarily
+        cell.style.overflow = "visible"
+        if (cell.scrollWidth > cell.clientWidth + 2) {
+          needsOneCol = true
+        }
+        cell.style.overflow = ""
       })
-      setOneCol(overflow)
+
+      // Also: if any button height > 72px, content is wrapping heavily
+      const buttons = el.querySelectorAll<HTMLElement>("button")
+      buttons.forEach(btn => {
+        if (btn.offsetHeight > 72) needsOneCol = true
+      })
+
+      // Restore correct layout
+      el.classList.remove("grid-cols-2")
+      if (needsOneCol) {
+        el.classList.add("grid-cols-1")
+      }
+      setOneCol(needsOneCol)
     }
 
-    // Wait for KaTeX to finish rendering (~2 frames)
-    let raf1 = requestAnimationFrame(() => {
-      let raf2 = requestAnimationFrame(check)
-      return () => cancelAnimationFrame(raf2)
-    })
+    // Wait 2 frames for KaTeX to finish rendering
+    let raf = requestAnimationFrame(() => requestAnimationFrame(check))
 
-    const ro = new ResizeObserver(check)
+    const ro = new ResizeObserver(() => requestAnimationFrame(check))
     ro.observe(el)
 
     return () => {
-      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf)
       ro.disconnect()
     }
   }, [options])
@@ -72,6 +111,7 @@ export function OptionsGrid({
            : isSel     ? "border-zinc-500 bg-muted text-foreground"
            :             "border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-foreground/80"
     }
+    // admin
     return isCorrect ? "border-emerald-400/40 bg-emerald-400/5 text-emerald-300"
          :             "border-zinc-800 text-zinc-400"
   }
@@ -87,7 +127,10 @@ export function OptionsGrid({
   }
 
   return (
-    <div ref={probeRef} className={`grid gap-2 ${oneCol ? "grid-cols-1" : "grid-cols-2"}`}>
+    <div
+      ref={gridRef}
+      className={`grid gap-2 ${oneCol ? "grid-cols-1" : "grid-cols-2"}`}
+    >
       {options.map(({ key, value }) => {
         const isCorrect = revealed && key === correctKey
         const isWrong   = revealed && key === selected && key !== correctKey
@@ -102,7 +145,10 @@ export function OptionsGrid({
                               text-xs font-mono font-bold uppercase mt-0.5 ${badgeClass(key)}`}>
               {key}
             </span>
-            <span data-option-cell className="flex-1 text-xs leading-relaxed min-w-0 overflow-hidden">
+            <span
+              data-option-cell
+              className="flex-1 text-xs leading-relaxed min-w-0 overflow-hidden"
+            >
               <MathText text={value} />
             </span>
             {isCorrect && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />}
