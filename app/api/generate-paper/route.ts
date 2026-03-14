@@ -10,6 +10,7 @@ interface Problem {
   option_b?:      string | null;
   option_c?:      string | null;
   option_d?:      string | null;
+  optionCols?:    "auto" | "1" | "2";
   correct_answer?: string;
   customMarks?:   number;
   showAnswer?:    boolean;
@@ -42,6 +43,8 @@ function tex(text: string | null | undefined): string {
   r = r.replace(/\\begin\s*\{center\}/g, "");
   r = r.replace(/\\end\s*\{center\}/g,   "");
   r = r.replace(/\\centering\b/g,           "");
+  // \say{text} → Bengali-style "text" (dirtytalk unreliable with XeLaTeX+polyglossia)
+  r = r.replace(/\\say\{([^}]*)\}/g, (_, t) => `"${t}"`);
   // $$ → \[ \]
   r = r.replace(/\$\$([\s\S]*?)\$\$/g, (_, m) => `\\[${m}\\]`);
   // $ → \( \)
@@ -82,8 +85,8 @@ function cqBlock(problems: Problem[]): string {
       return `\\question ${stem}\n`;
     }
 
-    // Bangladesh board CQ standard marks: ক=১ খ=২ গ=৩ ঘ=৪
-    const BD_MARKS = [1, 2, 3, 4];
+    // Bangladesh board CQ standard marks: ক=১ খ=২ গ=৩ ঘ=৮
+    const BD_MARKS = [1, 2, 3, 8];
     const partMarks = opts.map((_, i) => BD_MARKS[i] ?? 1);
     const total     = partMarks.reduce((s, m) => s + m, 0);
 
@@ -107,7 +110,8 @@ function mcqBlock(problems: Problem[], showAns: boolean): string {
     const a = tex(p.option_a); const b = tex(p.option_b);
     const c = tex(p.option_c); const d = tex(p.option_d);
     const bare = (s: string) => s.replace(/\\\([\s\S]*?\\\)/g, "X").replace(/\\[a-zA-Z]+(?:\{[^}]*\})?/g, "X");
-    const cols = Math.max(bare(a).length, bare(b).length, bare(c).length, bare(d).length) < 30 ? "(2)" : "(1)";
+    const autoCols = Math.max(bare(a).length, bare(b).length, bare(c).length, bare(d).length) < 30 ? "(2)" : "(1)";
+    const cols = p.optionCols === "1" ? "(1)" : p.optionCols === "2" ? "(2)" : autoCols;
     const ans  = (showAns || p.showAnswer) && p.correct_answer
       ? `\n    {\\small\\bfseries উত্তর: ${p.correct_answer.toUpperCase()}}` : "";
     return `\\question ${q}\n    \\begin{tasks}${cols}\n        \\task ${a}\n        \\task ${b}\n        \\task ${c}\n        \\task ${d}\n    \\end{tasks}${ans}\n`;
@@ -137,6 +141,7 @@ function buildDocument(problems: Problem[], fmt: PaperFormat): string {
 ${cqBlock(cqList)}
 \\end{questions}
 
+\\pagebreak
 ` : "";
 
   const mcqSection = mcqList.length > 0 ? `

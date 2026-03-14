@@ -51,6 +51,7 @@ export interface Problem {
 export interface SelectedProblem extends Problem {
   customMarks: number;
   showAnswer:  boolean;
+  optionCols:  "auto" | "1" | "2";
 }
 
 interface Subject { id: string; name: string; }
@@ -341,11 +342,11 @@ export default function PaperBuilderPage() {
   const isSelected   = (id: string) => selected.some(s => s.id === id);
   const toggleSelect = (p: Problem) => {
     if (isSelected(p.id)) setSelected(sel => sel.filter(s => s.id !== p.id));
-    else setSelected(sel => [...sel, { ...p, customMarks: p.marks ?? 1, showAnswer: false }]);
+    else setSelected(sel => [...sel, { ...p, customMarks: p.marks ?? 1, showAnswer: false, optionCols: "auto" }]);
   };
   const selectAll  = () => {
     const toAdd = filtered.filter(p => !isSelected(p.id));
-    setSelected(sel => [...sel, ...toAdd.map(p => ({ ...p, customMarks: p.marks ?? 1, showAnswer: false }))]);
+    setSelected(sel => [...sel, ...toAdd.map(p => ({ ...p, customMarks: p.marks ?? 1, showAnswer: false, optionCols: "auto" }))]);
   };
   const clearFilters = () => { setSearch(""); setFilterSubj(""); setFilterTopic(""); setFilterDiff(""); setFilterType(""); setPage(1); };
   const hasFilters   = !!(filterSubj || filterTopic || filterDiff || filterType || search);

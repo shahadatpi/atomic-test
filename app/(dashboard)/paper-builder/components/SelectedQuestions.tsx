@@ -201,6 +201,10 @@ export default function SelectedQuestions({ selected, setSelected }: Props) {
     setSelected(sel => sel.map(s => s.id === id ? { ...s, showAnswer: !s.showAnswer } : s));
   const applyEdit   = (id: string, patch: Partial<SelectedProblem>) =>
     setSelected(sel => sel.map(s => s.id === id ? { ...s, ...patch } : s));
+  const toggleCols  = (id: string) =>
+    setSelected(sel => sel.map(s => s.id === id
+      ? { ...s, optionCols: s.optionCols === "auto" ? "1" : s.optionCols === "1" ? "2" : "auto" }
+      : s));
 
   if (selected.length === 0) return (
     <div className="flex flex-col items-center justify-center py-24 text-zinc-600">
@@ -336,19 +340,39 @@ export default function SelectedQuestions({ selected, setSelected }: Props) {
                   <MathText text={p.question} />
                 </div>
 
-                {/* MCQ options — inline */}
+                {/* MCQ options — inline with col toggle */}
                 {isMcq && (
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {(["a","b","c","d"] as const).map(opt => (
-                      <div key={opt} className={`flex items-baseline gap-1.5 text-xs px-3 py-2 rounded-xl border ${
-                        p.correct_answer === opt.toUpperCase()
-                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                          : "border-zinc-800 text-zinc-500"
-                      }`}>
-                        <span className="font-bold font-mono shrink-0">{opt.toUpperCase()}.</span>
-                        <span className="leading-snug"><MathText text={(p as any)[`option_${opt}`]} /></span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-zinc-600">বিকল্পসমূহ</p>
+                      <div className="flex items-center gap-1 bg-zinc-800 rounded-lg p-0.5">
+                        {(["auto","1","2"] as const).map(c => (
+                          <button key={c} type="button"
+                            onClick={() => toggleCols(p.id)}
+                            className={`px-2.5 py-1 rounded-md text-xs font-mono transition-all ${
+                              p.optionCols === c
+                                ? "bg-violet-500 text-white"
+                                : "text-zinc-500 hover:text-zinc-300"
+                            }`}
+                            title={c === "auto" ? "Auto detect columns" : `${c} column`}
+                          >
+                            {c === "auto" ? "Auto" : c === "1" ? "১ কলাম" : "২ কলাম"}
+                          </button>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                    <div className={p.optionCols === "1" ? "space-y-1.5" : "grid grid-cols-2 gap-1.5"}>
+                      {(["a","b","c","d"] as const).map(opt => (
+                        <div key={opt} className={`flex items-baseline gap-1.5 text-xs px-3 py-2 rounded-xl border ${
+                          p.correct_answer === opt.toUpperCase()
+                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                            : "border-zinc-800 text-zinc-500"
+                        }`}>
+                          <span className="font-bold font-mono shrink-0">{opt.toUpperCase()}.</span>
+                          <span className="leading-snug"><MathText text={(p as any)[`option_${opt}`]} /></span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

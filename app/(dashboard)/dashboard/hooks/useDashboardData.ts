@@ -85,7 +85,7 @@ export function useDashboardData({
       .from("problems")
       .select(
         `id, question, option_a, option_b, option_c, option_d,
-         correct_answer, explanation, hint, difficulty, is_free, problem_type, tags,
+         correct_answer, explanation, hint, difficulty, is_free, tags, problem_type,
          subjects(name), topics(name), subtopics(name)`
       )
       .order("created_at", { ascending: false })
