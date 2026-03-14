@@ -663,8 +663,9 @@ function DiffBadge({ level }: { level: string }) {
 }
 
 function ProblemCard({ problem: init, onDelete, number }: {
+  key?:     React.Key;
   problem:  Problem;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => void | Promise<void>;
   number:   number;
 }) {
   const [problem,  setProblem]  = useState(init);
@@ -857,75 +858,59 @@ export default function ProblemsListPage() {
   /* ── Shared pagination component ── */
   const Pagination = () => {
     if (totalPages <= 1) return null;
-    const pageNums: (number | "…")[] = Array.from({ length: totalPages }, (_, i) => i)
-      .filter(i => i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 1)
-      .reduce((acc: (number | "…")[], i, idx, arr) => {
-        if (idx > 0 && (arr[idx - 1] as number) < i - 1) acc.push("…");
-        acc.push(i);
-        return acc;
-      }, []);
+    const navBtn = "w-9 h-9 flex items-center justify-center rounded-xl border border-zinc-800 text-zinc-400 disabled:opacity-20 hover:border-zinc-600 hover:text-white active:scale-95 transition-all text-sm";
+
     return (
-      <div className="flex items-center justify-between gap-3 bg-zinc-900/60 border border-zinc-800 rounded-2xl px-4 py-3">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 space-y-2.5">
 
-        {/* Count */}
-        <p className="text-xs text-zinc-500 shrink-0 hidden sm:block">
-          <span className="text-zinc-200 font-semibold">{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)}</span>
-          <span className="text-zinc-600"> / {total}</span>
-        </p>
+        {/* Single row: « ‹  [prev] [current] [next]  › » */}
+        <div className="flex items-center justify-between gap-1">
 
-        {/* Page buttons */}
-        <div className="flex items-center gap-1">
-          {/* First + Prev */}
-          <button onClick={() => setPage(0)} disabled={page === 0}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 disabled:opacity-25 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs">
-            «
-          </button>
-          <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 disabled:opacity-25 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs">
-            ‹
-          </button>
+          <button onClick={() => setPage(0)} disabled={page === 0} className={navBtn}>«</button>
+          <button onClick={() => setPage(p => p - 1)} disabled={page === 0} className={navBtn}>‹</button>
 
-          {/* Page numbers */}
-          <div className="flex items-center gap-1 mx-1">
-            {pageNums.map((item, idx) =>
-              item === "…" ? (
-                <span key={`e${idx}`} className="w-8 text-center text-zinc-600 text-xs select-none">…</span>
-              ) : (
-                <button key={item} onClick={() => setPage(item)}
-                  className={`w-8 h-8 rounded-lg border text-xs font-mono font-medium transition-all ${
-                    page === item
-                      ? "border-violet-500 bg-violet-500 text-white shadow-lg shadow-violet-500/30"
-                      : "border-zinc-800 text-zinc-400 hover:border-violet-500/50 hover:text-violet-400 hover:bg-violet-500/5"
-                  }`}>
-                  {item + 1}
-                </button>
-              )
+          {/* Only 3 page buttons max — always fits */}
+          <div className="flex items-center gap-1 flex-1 justify-center">
+            {page > 0 && (
+              <button onClick={() => setPage(page - 1)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-zinc-800 text-zinc-500 text-xs font-mono hover:border-violet-400/50 hover:text-violet-400 transition-all">
+                {page}
+              </button>
+            )}
+            <button className="w-9 h-9 flex items-center justify-center rounded-xl border border-violet-500 bg-violet-500 text-white text-xs font-mono font-semibold shadow-md shadow-violet-500/30">
+              {page + 1}
+            </button>
+            {page < totalPages - 1 && (
+              <button onClick={() => setPage(page + 1)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-zinc-800 text-zinc-500 text-xs font-mono hover:border-violet-400/50 hover:text-violet-400 transition-all">
+                {page + 2}
+              </button>
             )}
           </div>
 
-          {/* Next + Last */}
-          <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 disabled:opacity-25 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs">
-            ›
-          </button>
-          <button onClick={() => setPage(totalPages - 1)} disabled={page >= totalPages - 1}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 disabled:opacity-25 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs">
-            »
-          </button>
+          <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1} className={navBtn}>›</button>
+          <button onClick={() => setPage(totalPages - 1)} disabled={page >= totalPages - 1} className={navBtn}>»</button>
+
         </div>
 
-        {/* Go to page */}
-        <div className="flex items-center gap-2 text-xs text-zinc-500 shrink-0">
-          <span className="hidden sm:inline">Go to</span>
-          <input
-            type="number" min={1} max={totalPages} defaultValue={page + 1}
-            key={page}
-            onBlur={e => { const v = parseInt(e.target.value) - 1; if (v >= 0 && v < totalPages) setPage(v); }}
-            onKeyDown={e => { if (e.key === "Enter") { const v = parseInt((e.target as HTMLInputElement).value) - 1; if (v >= 0 && v < totalPages) setPage(v); } }}
-            className="w-12 h-8 bg-zinc-950 border border-zinc-800 rounded-lg text-center text-zinc-200 outline-none focus:border-violet-500/50 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-xs"
-          />
-          <span className="text-zinc-700">/ {totalPages}</span>
+        {/* Info + jump */}
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-xs text-zinc-500">
+            <span className="text-zinc-200 font-medium">{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)}</span>
+            <span className="text-zinc-600"> / {total}</span>
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-zinc-600">Go</span>
+            <input
+              key={page} type="number" min={1} max={totalPages} defaultValue={page + 1}
+              onBlur={e => { const v = +e.target.value - 1; if (v >= 0 && v < totalPages) setPage(v); }}
+              onKeyDown={e => { if (e.key === "Enter") { const v = +(e.target as HTMLInputElement).value - 1; if (v >= 0 && v < totalPages) setPage(v); }}}
+              className="w-10 h-8 bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-lg text-center text-xs text-zinc-200 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-xs text-zinc-700">/{totalPages}</span>
+          </div>
         </div>
+
       </div>
     );
   };
@@ -1024,7 +1009,7 @@ export default function ProblemsListPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {problems.map((p, i) => (
+            {(problems as Problem[]).map((p: Problem, i: number) => (
               <ProblemCard key={p.id} problem={p} onDelete={handleDelete} number={page * PAGE_SIZE + i + 1} />
             ))}
           </div>
