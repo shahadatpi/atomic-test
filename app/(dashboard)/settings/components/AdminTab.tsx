@@ -1,12 +1,13 @@
 import Link from "next/link"
-import { LayoutDashboard, Zap, Users, ChevronRight } from "lucide-react"
+import { LayoutDashboard, Zap, Users, Upload, ChevronRight } from "lucide-react"
 import { Section } from "../ui/Section"
 import { Row }     from "../ui/Row"
 
 const ADMIN_TOOLS = [
     { href: "/admin/problems",    icon: LayoutDashboard, label: "Manage Problems", desc: "Edit, delete, filter problems" },
-    { href: "/admin/add-problems", icon: Zap,             label: "Add New Problem", desc: "Create a new MCQ problems" },
+    { href: "/admin/add-problem", icon: Zap,             label: "Add New Problem", desc: "Create a new MCQ problem" },
     { href: "/admin/users",       icon: Users,           label: "Manage Users",    desc: "View users, change roles" },
+    { href: "/admin/bulk-import",  icon: Upload,          label: "Bulk Import",     desc: "Paste questions, fill details later" },
 ]
 
 interface AdminTabProps {
