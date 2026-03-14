@@ -15,6 +15,8 @@ const supabase = createClient(
 
 interface Problem {
   id:             string;
+  subject_id:     string | null;
+  topic_id:       string | null;
   question:       string;
   option_a:       string;
   option_b:       string;
@@ -160,6 +162,94 @@ function EditModal({ problem, onClose, onSave }: {
   const [pickerInst,    setPickerInst]    = useState("");
   const [pickerYear,    setPickerYear]    = useState(YEARS[1]);
 
+  // Subject / topic / subtopic
+  const [allSubjects,   setAllSubjects]   = useState<Subject[]>([]);
+  const [allTopics,     setAllTopics]     = useState<Topic[]>([]);
+  const [allSubtopics,  setAllSubtopics]  = useState<Subtopic[]>([]);
+  const [subjectId,     setSubjectId]     = useState(problem.subject_id ?? "");
+  const [topicId,       setTopicId]       = useState(problem.topic_id ?? "");
+  const [subtopicId,    setSubtopicId]    = useState(problem.subtopic_id ?? "");
+  const [problemType,   setProblemType]   = useState((problem as any).problem_type ?? "board_mcq");
+  // topic inline edit/create
+  const [topicMode,        setTopicMode]        = useState<"select"|"rename"|"create">("select");
+  const [topicNameVal,     setTopicNameVal]      = useState("");
+  const [topicSaving,      setTopicSaving]       = useState(false);
+  const [topicErr,         setTopicErr]          = useState("");
+  // subtopic inline edit/create
+  const [subtopicMode,     setSubtopicMode]      = useState<"select"|"rename"|"create">("select");
+  const [subtopicNameVal,  setSubtopicNameVal]   = useState("");
+  const [subtopicSaving,   setSubtopicSaving]    = useState(false);
+  const [subtopicErr,      setSubtopicErr]       = useState("");
+
+  const saveTopicName = async () => {
+    if (!topicId || !topicNameVal.trim()) return;
+    setTopicSaving(true); setTopicErr("");
+    const { error } = await supabase.from("topics").update({ name: topicNameVal.trim() }).eq("id", topicId);
+    if (error) { setTopicErr(error.message); setTopicSaving(false); return; }
+    setAllTopics(prev => prev.map(t => t.id === topicId ? { ...t, name: topicNameVal.trim() } : t));
+    setTopicMode("select"); setTopicSaving(false);
+  };
+
+  const createTopic = async () => {
+    if (!subjectId || !topicNameVal.trim()) { setTopicErr("Select a subject first"); return; }
+    setTopicSaving(true); setTopicErr("");
+    const { data, error } = await supabase.from("topics")
+      .insert({ name: topicNameVal.trim(), subject_id: subjectId })
+      .select().single();
+    if (error) { setTopicErr(error.message); setTopicSaving(false); return; }
+    setAllTopics(prev => [...prev, data]);
+    setTopicId(data.id);
+    setTopicMode("select"); setTopicSaving(false); setTopicNameVal("");
+  };
+
+  const saveSubtopicName = async () => {
+    if (!subtopicId || !subtopicNameVal.trim()) return;
+    setSubtopicSaving(true); setSubtopicErr("");
+    const { error } = await supabase.from("subtopics").update({ name: subtopicNameVal.trim() }).eq("id", subtopicId);
+    if (error) { setSubtopicErr(error.message); setSubtopicSaving(false); return; }
+    setAllSubtopics(prev => prev.map(s => s.id === subtopicId ? { ...s, name: subtopicNameVal.trim() } : s));
+    setSubtopicMode("select"); setSubtopicSaving(false);
+  };
+
+  const createSubtopic = async () => {
+    if (!topicId || !subtopicNameVal.trim()) { setSubtopicErr("Select a topic first"); return; }
+    setSubtopicSaving(true); setSubtopicErr("");
+    const { data, error } = await supabase.from("subtopics")
+      .insert({ name: subtopicNameVal.trim(), topic_id: topicId })
+      .select().single();
+    if (error) { setSubtopicErr(error.message); setSubtopicSaving(false); return; }
+    setAllSubtopics(prev => [...prev, data]);
+    setSubtopicId(data.id);
+    setSubtopicMode("select"); setSubtopicSaving(false); setSubtopicNameVal("");
+  };
+
+  useEffect(() => {
+    // Load subjects + ALL topics at once so dropdowns are pre-populated
+    Promise.all([
+      supabase.from("subjects").select("id, name").order("sort_order"),
+      supabase.from("topics").select("id, name, subject_id").order("name"),
+    ]).then(([{ data: subs }, { data: tops }]) => {
+      setAllSubjects(subs || []);
+      setAllTopics(tops || []);
+    });
+    // Pre-load subtopics for the problem's existing topic
+    if (problem.topic_id) {
+      supabase.from("subtopics").select("id, name, topic_id")
+        .eq("topic_id", problem.topic_id).order("sort_order")
+        .then(({ data }) => setAllSubtopics(data || []));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!topicId) { setAllSubtopics([]); return; }
+    supabase.from("subtopics").select("id, name, topic_id").eq("topic_id", topicId).order("sort_order")
+      .then(({ data }) => setAllSubtopics(data || []));
+  }, [topicId]);
+
+  const filteredTopics = subjectId
+    ? allTopics.filter(t => t.subject_id === subjectId)
+    : allTopics;
+
   const tagList = tags.split(",").map(t => t.trim()).filter(Boolean);
 
   const removeTag = (tag: string) => {
@@ -175,34 +265,51 @@ function EditModal({ problem, onClose, onSave }: {
 
   const handleSave = async () => {
     if (!question.trim()) { setError("Question cannot be empty"); return; }
-    if (!options.a.trim() || !options.b.trim() || !options.c.trim() || !options.d.trim()) {
-      setError("All four options must be filled in"); return;
+    // Options only required for MCQ types
+    const isMcq = problemType.includes("mcq");
+    if (isMcq && (!options.a.trim() || !options.b.trim() || !options.c.trim() || !options.d.trim())) {
+      setError("All four options must be filled in for MCQ"); return;
     }
     setSaving(true);
     setError("");
     const tagsArr = tags.split(",").map(t => t.trim()).filter(Boolean);
     const { error: dbErr } = await supabase.from("problems").update({
       question:       question.trim(),
-      option_a:       options.a.trim(),
-      option_b:       options.b.trim(),
-      option_c:       options.c.trim(),
-      option_d:       options.d.trim(),
-      correct_answer: correctAnswer,
+      option_a:       options.a.trim() || null,
+      option_b:       options.b.trim() || null,
+      option_c:       options.c.trim() || null,
+      option_d:       options.d.trim() || null,
+      correct_answer: correctAnswer || null,
       explanation:    explanation.trim() || null,
       difficulty,
       tags:           tagsArr.length ? tagsArr : null,
       source:         source.trim() || null,
       is_free:        isFree,
+      subject_id:     subjectId  || null,
+      topic_id:       topicId    || null,
+      subtopic_id:    subtopicId || null,
+      problem_type:   problemType,
       updated_at:     new Date().toISOString(),
     }).eq("id", problem.id);
     setSaving(false);
-    if (dbErr) { setError(dbErr.message); return; }
+    if (dbErr) { setSaving(false); setError("DB error: " + dbErr.message); return; }
     onSave({
-      question, explanation: explanation || null, source: source || null,
-      option_a: options.a, option_b: options.b, option_c: options.c, option_d: options.d,
-      correct_answer: correctAnswer, difficulty, is_free: isFree,
-      tags: tagsArr.length ? tagsArr : null,
-    });
+      question,
+      explanation:    explanation || null,
+      source:         source || null,
+      option_a:       options.a || null,
+      option_b:       options.b || null,
+      option_c:       options.c || null,
+      option_d:       options.d || null,
+      correct_answer: correctAnswer || null,
+      difficulty,
+      is_free:        isFree,
+      tags:           tagsArr.length ? tagsArr : null,
+      subject_id:     subjectId  || null,
+      topic_id:       topicId    || null,
+      subtopic_id:    subtopicId || null,
+      problem_type:   problemType,
+    } as any);
     onClose();
   };
 
@@ -223,6 +330,113 @@ function EditModal({ problem, onClose, onSave }: {
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+
+          {/* Subject / Topic / Subtopic / Type */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2">Subject</p>
+              <select value={subjectId} onChange={e => { setSubjectId(e.target.value); setTopicId(""); setSubtopicId(""); }}
+                className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 outline-none transition-all appearance-none">
+                <option value="">— select subject —</option>
+                {allSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Topic</p>
+                <div className="flex gap-2">
+                  {topicId && topicMode === "select" && (
+                    <button type="button" onClick={() => { setTopicNameVal(allTopics.find(t=>t.id===topicId)?.name ?? ""); setTopicMode("rename"); setTopicErr(""); }}
+                      className="text-xs text-zinc-500 hover:text-violet-400 transition-colors">✎ rename</button>
+                  )}
+                  {topicMode === "select" && (
+                    <button type="button" onClick={() => { setTopicNameVal(""); setTopicMode("create"); setTopicErr(""); }}
+                      className="text-xs text-emerald-500 hover:text-emerald-400 transition-colors">+ new</button>
+                  )}
+                  {topicMode !== "select" && (
+                    <button type="button" onClick={() => { setTopicMode("select"); setTopicErr(""); }}
+                      className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">✕ cancel</button>
+                  )}
+                </div>
+              </div>
+              {topicMode !== "select" ? (
+                <div className="space-y-1.5">
+                  <div className="flex gap-2">
+                    <input autoFocus value={topicNameVal} onChange={e => setTopicNameVal(e.target.value)}
+                      placeholder={topicMode === "create" ? "New topic name…" : "Rename topic…"}
+                      onKeyDown={e => { if (e.key === "Enter") topicMode === "create" ? createTopic() : saveTopicName(); if (e.key === "Escape") setTopicMode("select"); }}
+                      className="flex-1 bg-zinc-950 border border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 outline-none" />
+                    <button type="button" disabled={topicSaving} onClick={topicMode === "create" ? createTopic : saveTopicName}
+                      className="px-4 py-2 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-xs rounded-xl font-semibold transition-colors whitespace-nowrap">
+                      {topicSaving ? "…" : topicMode === "create" ? "Create" : "Save"}
+                    </button>
+                  </div>
+                  {topicErr && <p className="text-xs text-red-400">{topicErr}</p>}
+                </div>
+              ) : (
+                <select value={topicId} onChange={e => { setTopicId(e.target.value); setSubtopicId(""); setSubtopicMode("select"); }}
+                  disabled={!subjectId}
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 outline-none transition-all appearance-none disabled:opacity-40">
+                  <option value="">— select topic —</option>
+                  {filteredTopics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Subtopic</p>
+                <div className="flex gap-2">
+                  {subtopicId && subtopicMode === "select" && (
+                    <button type="button" onClick={() => { setSubtopicNameVal(allSubtopics.find(s=>s.id===subtopicId)?.name ?? ""); setSubtopicMode("rename"); setSubtopicErr(""); }}
+                      className="text-xs text-zinc-500 hover:text-violet-400 transition-colors">✎ rename</button>
+                  )}
+                  {subtopicMode === "select" && (
+                    <button type="button" onClick={() => { setSubtopicNameVal(""); setSubtopicMode("create"); setSubtopicErr(""); }}
+                      disabled={!topicId}
+                      className="text-xs text-emerald-500 hover:text-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">+ new</button>
+                  )}
+                  {subtopicMode !== "select" && (
+                    <button type="button" onClick={() => { setSubtopicMode("select"); setSubtopicErr(""); }}
+                      className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">✕ cancel</button>
+                  )}
+                </div>
+              </div>
+              {subtopicMode !== "select" ? (
+                <div className="space-y-1.5">
+                  <div className="flex gap-2">
+                    <input autoFocus value={subtopicNameVal} onChange={e => setSubtopicNameVal(e.target.value)}
+                      placeholder={subtopicMode === "create" ? "New subtopic name…" : "Rename subtopic…"}
+                      onKeyDown={e => { if (e.key === "Enter") subtopicMode === "create" ? createSubtopic() : saveSubtopicName(); if (e.key === "Escape") setSubtopicMode("select"); }}
+                      className="flex-1 bg-zinc-950 border border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 outline-none" />
+                    <button type="button" disabled={subtopicSaving} onClick={subtopicMode === "create" ? createSubtopic : saveSubtopicName}
+                      className="px-4 py-2 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-xs rounded-xl font-semibold transition-colors whitespace-nowrap">
+                      {subtopicSaving ? "…" : subtopicMode === "create" ? "Create" : "Save"}
+                    </button>
+                  </div>
+                  {subtopicErr && <p className="text-xs text-red-400">{subtopicErr}</p>}
+                </div>
+              ) : (
+                <select value={subtopicId} onChange={e => setSubtopicId(e.target.value)}
+                  disabled={!topicId}
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 outline-none transition-all appearance-none disabled:opacity-40">
+                  <option value="">— none —</option>
+                  {allSubtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2">Question Type</p>
+              <select value={problemType} onChange={e => setProblemType(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 outline-none transition-all appearance-none">
+                <option value="board_mcq">Board MCQ</option>
+                <option value="admission_mcq">Admission MCQ</option>
+                <option value="board_cq">Board CQ</option>
+                <option value="board_written">Board Written</option>
+                <option value="admission_written">Admission Written</option>
+                <option value="practice">Practice</option>
+              </select>
+            </div>
+          </div>
 
           {/* Question */}
           <LaTeXField
@@ -417,7 +631,10 @@ function EditModal({ problem, onClose, onSave }: {
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800 bg-zinc-950/60 shrink-0">
-          <button onClick={onClose} className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Cancel</button>
+          <div className="flex items-center gap-3">
+            <button onClick={onClose} className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Cancel</button>
+            {error && <p className="text-xs text-red-400 max-w-sm truncate">{error}</p>}
+          </div>
           <button onClick={handleSave} disabled={saving}
             className="flex items-center gap-2 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-colors">
             {saving
@@ -610,7 +827,8 @@ export default function ProblemsListPage() {
     let q = supabase
       .from("problems")
       .select(`id, question, option_a, option_b, option_c, option_d, correct_answer, explanation,
-               difficulty, is_free, tags, source, created_at, subtopic_id,
+               difficulty, is_free, tags, source, created_at,
+               subject_id, topic_id, subtopic_id, problem_type,
                subjects(name), topics(name), subtopics(name)`, { count: "exact" })
       .order("created_at", { ascending: false })
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
@@ -637,52 +855,80 @@ export default function ProblemsListPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   /* ── Shared pagination component ── */
-  const Pagination = () => totalPages <= 1 ? null : (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-zinc-500">
-          <span className="text-zinc-300 font-medium">{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)}</span>
-          <span className="text-zinc-600"> of </span>
-          <span className="text-zinc-300 font-medium">{total}</span>
-          <span className="text-zinc-600"> problems</span>
+  const Pagination = () => {
+    if (totalPages <= 1) return null;
+    const pageNums: (number | "…")[] = Array.from({ length: totalPages }, (_, i) => i)
+      .filter(i => i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 1)
+      .reduce((acc: (number | "…")[], i, idx, arr) => {
+        if (idx > 0 && (arr[idx - 1] as number) < i - 1) acc.push("…");
+        acc.push(i);
+        return acc;
+      }, []);
+    return (
+      <div className="flex items-center justify-between gap-3 bg-zinc-900/60 border border-zinc-800 rounded-2xl px-4 py-3">
+
+        {/* Count */}
+        <p className="text-xs text-zinc-500 shrink-0 hidden sm:block">
+          <span className="text-zinc-200 font-semibold">{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)}</span>
+          <span className="text-zinc-600"> / {total}</span>
         </p>
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
-          <span>Go to</span>
+
+        {/* Page buttons */}
+        <div className="flex items-center gap-1">
+          {/* First + Prev */}
+          <button onClick={() => setPage(0)} disabled={page === 0}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 disabled:opacity-25 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs">
+            «
+          </button>
+          <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 disabled:opacity-25 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs">
+            ‹
+          </button>
+
+          {/* Page numbers */}
+          <div className="flex items-center gap-1 mx-1">
+            {pageNums.map((item, idx) =>
+              item === "…" ? (
+                <span key={`e${idx}`} className="w-8 text-center text-zinc-600 text-xs select-none">…</span>
+              ) : (
+                <button key={item} onClick={() => setPage(item)}
+                  className={`w-8 h-8 rounded-lg border text-xs font-mono font-medium transition-all ${
+                    page === item
+                      ? "border-violet-500 bg-violet-500 text-white shadow-lg shadow-violet-500/30"
+                      : "border-zinc-800 text-zinc-400 hover:border-violet-500/50 hover:text-violet-400 hover:bg-violet-500/5"
+                  }`}>
+                  {item + 1}
+                </button>
+              )
+            )}
+          </div>
+
+          {/* Next + Last */}
+          <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 disabled:opacity-25 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs">
+            ›
+          </button>
+          <button onClick={() => setPage(totalPages - 1)} disabled={page >= totalPages - 1}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 disabled:opacity-25 hover:border-zinc-600 hover:text-zinc-200 transition-all text-xs">
+            »
+          </button>
+        </div>
+
+        {/* Go to page */}
+        <div className="flex items-center gap-2 text-xs text-zinc-500 shrink-0">
+          <span className="hidden sm:inline">Go to</span>
           <input
-            type="number" min={1} max={totalPages} value={page + 1}
-            onChange={e => { const v = parseInt(e.target.value) - 1; if (v >= 0 && v < totalPages) setPage(v); }}
-            className="w-14 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-center text-zinc-200 outline-none focus:border-violet-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            type="number" min={1} max={totalPages} defaultValue={page + 1}
+            key={page}
+            onBlur={e => { const v = parseInt(e.target.value) - 1; if (v >= 0 && v < totalPages) setPage(v); }}
+            onKeyDown={e => { if (e.key === "Enter") { const v = parseInt((e.target as HTMLInputElement).value) - 1; if (v >= 0 && v < totalPages) setPage(v); } }}
+            className="w-12 h-8 bg-zinc-950 border border-zinc-800 rounded-lg text-center text-zinc-200 outline-none focus:border-violet-500/50 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-xs"
           />
-          <span className="text-zinc-600">/ {totalPages}</span>
+          <span className="text-zinc-700">/ {totalPages}</span>
         </div>
       </div>
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
-          className="px-3 py-1.5 rounded-lg border border-zinc-800 text-xs text-zinc-400 disabled:opacity-30 hover:border-zinc-600 hover:text-zinc-200 transition-colors">← Prev</button>
-
-        {Array.from({ length: totalPages }, (_, i) => i)
-          .filter(i => i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 2)
-          .reduce((acc: (number | string)[], i, idx, arr) => {
-            if (idx > 0 && (arr[idx - 1] as number) < i - 1) acc.push("…");
-            acc.push(i);
-            return acc;
-          }, [])
-          .map((item, idx) => item === "…" ? (
-            <span key={`e-${idx}`} className="px-1 text-zinc-600 text-xs">…</span>
-          ) : (
-            <button key={item} onClick={() => setPage(item as number)}
-              className={`min-w-[32px] px-2 py-1.5 rounded-lg border text-xs font-mono transition-colors ${
-                page === item
-                  ? "border-violet-500 bg-violet-500/10 text-violet-400 font-semibold"
-                  : "border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
-              }`}>{(item as number) + 1}</button>
-          ))}
-
-        <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
-          className="px-3 py-1.5 rounded-lg border border-zinc-800 text-xs text-zinc-400 disabled:opacity-30 hover:border-zinc-600 hover:text-zinc-200 transition-colors">Next →</button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 py-10 px-4" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>

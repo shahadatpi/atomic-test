@@ -33,8 +33,6 @@ function tokenise(text: string): string {
   }
 
   return text
-    // \say{text} → "text" (csquotes package — not in KaTeX)
-    .replace(/\\say\{([^}]*)\}/g, '"$1"')
     // Unwrap \begin{center}...\end{center} (keep inner content)
     .replace(/\\begin\{center\}([\s\S]*?)\\end\{center\}/g, (_, inner) => inner.trim())
     .replace(/\\centering\b/g, "")
@@ -70,15 +68,22 @@ function tokenise(text: string): string {
 // ── Preprocess LaTeX text commands into markdown ──────────────────────────
 function preprocessText(text: string): string {
   return text
-    .replace(/\\hat\{i\}/g, "\\hat{\\imath}")   // dotless i looks better under hat
-    .replace(/\\hat\{j\}/g, "\\hat{\\jmath}")   // dotless j looks better under hat
-    .replace(/\\vec\{i\}/g, "\\vec{\\imath}")
-    .replace(/\\vec\{j\}/g, "\\vec{\\jmath}")
-    .replace(/\\say\{([^}]*)\}/g, '"$1"')   // \say{text} → "text"
-    .replace(/\\subsection\*?\{([^}]*)\}/g, (_, m) => `**${m}**`)
+    // Handle \section*{} — both single and double backslash (from DB storage)
+    .replace(/\\{1,2}section\*?\{([^}]*)\}/g,    (_, m) => `
+**${m}**
+`)
+    .replace(/\\{1,2}subsection\*?\{([^}]*)\}/g, (_, m) => `
+**${m}**
+`)
+    .replace(/\\{1,2}subsubsection\*?\{([^}]*)\}/g, (_, m) => `**${m}**`)
     .replace(/\\mathlarger\{([^}]*)\}/g,    (_, m) => m)
+    .replace(/\\par\b/g,       "\n")
+    .replace(/\\noindent\b/g,  "")
+    .replace(/\\newline\b/g,   "\n")
+    .replace(/\\\\/g,         "\n")
     .replace(/\\boxed\{([^}]*)\}/g, (_, m) =>
       /^[0-9+\-*/=^_.,() \\]+$/.test(m) ? `%%DM:${encodeURIComponent(`\\boxed{${m}}`)}%%` : `%%BOX:${m}%%`)
+    .replace(/\\say\{([^}]*)\}/g,       (_, m) => `\u201c${m}\u201d`)  // "text"
     .replace(/\\textbf\{([^}]*)\}/g,    (_, m) => `**${m}**`)
     .replace(/\\textit\{([^}]*)\}/g,    (_, m) => `_${m}_`)
     .replace(/\\texttt\{([^}]*)\}/g,    (_, m) => `\`${m}\``)
