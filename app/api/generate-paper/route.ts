@@ -39,6 +39,11 @@ function tex(text: string | null | undefined): string {
   r = r.replace(/%%IM:([^%]+)%%/gs,   (_, e) => { try { return `\\(${decodeURIComponent(e)}\\)`; } catch { return ""; } });
   r = r.replace(/%%BOX:([^%]*)%%/g,   (_, t) => t);
   r = r.replace(/%%LIST:[^%]*%%/g, "");
+  // Strip document-level commands accidentally stored in problem text
+  r = r.replace(/\\documentclass(?:\[[^\]]*\])?\{[^}]*\}/g, "");
+  r = r.replace(/\\usepackage(?:\[[^\]]*\])?\{[^}]*\}/g, "");
+  r = r.replace(/\\begin\s*\{document\}/g, "");
+  r = r.replace(/\\end\s*\{document\}/g, "");
   // Strip \begin{center}/\end{center} wrappers — illegal inside exam \question
   r = r.replace(/\\begin\s*\{center\}/g, "");
   r = r.replace(/\\end\s*\{center\}/g,   "");
@@ -85,8 +90,8 @@ function cqBlock(problems: Problem[]): string {
       return `\\question ${stem}\n`;
     }
 
-    // Bangladesh board CQ standard marks: ক=১ খ=২ গ=৩ ঘ=৪
-    const BD_MARKS = [1, 2, 3, 4];
+    // Bangladesh board CQ standard marks: ক=১ খ=২ গ=৩ ঘ=৮
+    const BD_MARKS = [1, 2, 3, 8];
     const partMarks = opts.map((_, i) => BD_MARKS[i] ?? 1);
     const total     = partMarks.reduce((s, m) => s + m, 0);
 
