@@ -349,11 +349,11 @@ export default function Page() {
   const isSelected   = (id: string) => selected.some(s => s.id === id);
   const toggleSelect = (p: Problem) => {
     if (isSelected(p.id)) setSelected(sel => sel.filter(s => s.id !== p.id));
-    else setSelected(sel => [...sel, { ...p, customMarks: p.marks ?? 1, showAnswer: false, optionCols: "auto" }]);
+    else setSelected(sel => [...sel, { ...p, customMarks: p.marks ?? 1, showAnswer: false, optionCols: "auto" as const }]);
   };
   const selectAll  = () => {
     const toAdd = filtered.filter(p => !isSelected(p.id));
-    setSelected(sel => [...sel, ...toAdd.map(p => ({ ...p, customMarks: p.marks ?? 1, showAnswer: false, optionCols: "auto" }))]);
+    setSelected(sel => [...sel, ...toAdd.map(p => ({ ...p, customMarks: p.marks ?? 1, showAnswer: false, optionCols: "auto" as const }))]);
   };
   const clearFilters = () => { setSearch(""); setFilterSubj(""); setFilterTopic(""); setFilterDiff(""); setFilterType(""); setPage(1); };
   const hasFilters   = !!(filterSubj || filterTopic || filterDiff || filterType || search);
