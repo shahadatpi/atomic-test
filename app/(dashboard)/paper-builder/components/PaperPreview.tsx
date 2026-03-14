@@ -128,7 +128,7 @@ export default function PaperPreview({ selected, format, onClose }: Props) {
                 <Loader2 className="w-7 h-7 text-violet-400 animate-spin" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium">{slow ? "xelatex কম্পাইল হচ্ছে…" : "প্রশ্নপত্র তৈরি হচ্ছে…"}</p>
+                <p className="text-sm font-medium">{slow ? "Question কম্পাইল হচ্ছে…" : "প্রশ্নপত্র তৈরি হচ্ছে…"}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {slow ? "একটু অপেক্ষা করুন" : `${selected.length}টি প্রশ্ন`}
                 </p>

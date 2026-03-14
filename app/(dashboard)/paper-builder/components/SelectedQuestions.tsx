@@ -255,7 +255,7 @@ export default function SelectedQuestions({ selected, setSelected }: Props) {
       {selected.map((p, idx) => {
         const isOpen    = expanded === p.id;
         const isEditing = editing === p.id;
-        const typeInfo  = TYPE_INFO[p.problem_type] ?? { label: p.problem_type, color: "border-zinc-700 bg-zinc-800 text-zinc-400" };
+        const typeInfo  = TYPE_INFO[p.problem_type ?? ""] ?? { label: p.problem_type ?? "", color: "border-zinc-700 bg-zinc-800 text-zinc-400" };
         const isMcq     = p.problem_type?.includes("mcq");
 
         return (

@@ -85,8 +85,8 @@ function cqBlock(problems: Problem[]): string {
       return `\\question ${stem}\n`;
     }
 
-    // Bangladesh board CQ standard marks: ক=১ খ=২ গ=৩ ঘ=৮
-    const BD_MARKS = [1, 2, 3, 8];
+    // Bangladesh board CQ standard marks: ক=১ খ=২ গ=৩ ঘ=৪
+    const BD_MARKS = [1, 2, 3, 4];
     const partMarks = opts.map((_, i) => BD_MARKS[i] ?? 1);
     const total     = partMarks.reduce((s, m) => s + m, 0);
 
