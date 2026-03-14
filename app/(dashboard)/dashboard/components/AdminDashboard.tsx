@@ -124,7 +124,7 @@ export default function AdminDashboard({ session }: AdminDashboardProps) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');`}</style>
 
       <div className="flex h-screen overflow-hidden">
@@ -250,7 +250,7 @@ function AdminSidebar({ session, onClose }: { session: any; onClose: () => void 
   const links = [
     { href: "/dashboard",         icon: BarChart2,  label: "Overview"       },
     { href: "/admin/problems",    icon: FileText,   label: "Problems"       },
-    { href: "/admin/add-problems", icon: Plus,       label: "Add Problem"    },
+    { href: "/admin/add-problem", icon: Plus,       label: "Add Problem"    },
     { href: "/admin/users",       icon: Users,      label: "Users"          },
     { href: "/settings",          icon: Settings,   label: "Settings"       },
   ]

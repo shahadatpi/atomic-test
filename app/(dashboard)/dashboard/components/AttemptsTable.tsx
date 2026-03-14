@@ -35,7 +35,7 @@ export default function AttemptsTable({
     : ["Problem", "Subject", "Difficulty", "Result", "Time"]
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
       <table className="w-full min-w-[500px]">
         <thead>
           <tr className="border-b border-border">

@@ -26,7 +26,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   if (!session || !isAdmin) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center" >
         <div className="text-center space-y-3">
           <p className="text-red-400 text-lg font-semibold">Access Denied</p>
           <p className="text-muted-foreground text-sm">Admin access required.</p>

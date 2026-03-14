@@ -2,47 +2,19 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* ── Bengali fonts ─────────────────────────────────────────────────────── */
-@font-face {
-  font-family: "Noto Sans Bengali";
-  src: url("https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts/hinted/ttf/NotoSansBengali/NotoSansBengali-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-display: swap;
-}
+@custom-variant dark (&:is(.dark *));
 
-/* Kalpurush via jsDelivr (GitHub raw mirror) */
 @font-face {
   font-family: "Kalpurush";
-  src: url("https://cdn.jsdelivr.net/gh/chaijax/kalpurush@main/Kalpurush.ttf") format("truetype");
+  src: url("/fonts/Kalpurush.ttf") format("truetype");
   font-weight: 400 700;
   font-style: normal;
   font-display: swap;
 }
-
-@font-face {
-  font-family: "SiyamRupali";
-  src: url("https://cdn.jsdelivr.net/gh/chaijax/SiyamRupali@main/SiyamRupali.ttf") format("truetype");
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Roboto";
-  src: url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap") format("truetype");
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-
-
-
-
-@custom-variant dark (&:is(.dark *));
 
 @layer base {
   :root {
+    --default-font-family: "Kalpurush", "Roboto", sans-serif;
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --border: 240 5.9% 90%;
@@ -59,21 +31,29 @@
   }
   * { border-color: var(--border);
     @apply border-border outline-ring/50; }
+  html, body {
+    font-family: "Kalpurush", "Roboto", sans-serif !important;
+  }
+  /* Exclude KaTeX math, code blocks, and mono elements */
+  .katex, .katex *, .katex-html, .katex-html *,
+  code, pre,
+  .font-mono, [class*="font-mono"] {
+    font-family: inherit;
+  }
+  .font-mono, [class*="font-mono"], code, pre {
+    font-family: var(--font-geist-mono), monospace !important;
+  }
   body { background-color: hsl(var(--background)); color: hsl(var(--foreground));
     @apply bg-background text-foreground;
-    font-family: Roboto, "Kalpurush", "SiyamRupali", var(--font-bengali), "Noto Sans Bengali", sans-serif;
   }
-  /* Ensure Bengali script always uses Kalpurush */
-  :lang(bn), [lang="bn"] {
-    font-family:  "Kalpurush", "SiyamRupali", var(--font-bengali), "Noto Sans Bengali", sans-serif;
-  }
+
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans:  Roboto, "Kalpurush", "SiyamRupali", var(--font-bengali), "Noto Sans Bengali", sans-serif;
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Kalpurush", "Roboto", sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

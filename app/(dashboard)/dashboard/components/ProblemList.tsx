@@ -22,7 +22,7 @@ export default function ProblemList({
   onRefresh,
 }: ProblemListProps) {
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl overflow-hidden" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
           Problems

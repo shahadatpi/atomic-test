@@ -1,28 +1,15 @@
 import type {Metadata} from "next";
-import {Geist_Mono, Noto_Sans_Bengali} from "next/font/google";
+import {Roboto, Geist_Mono} from "next/font/google";
 import "./globals.css";
 import React from "react";
 import {ThemeProvider} from "next-themes";
 import AuthProvider from "@/components/AuthProvider";
 
-
-export default function RootLayout({
-                                       children,
-                                   }: Readonly<{
-    children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <AuthProvider>
-            <html lang="bn" suppressHydrationWarning={true}>
+            <html lang="en" suppressHydrationWarning={true}>
                 <head>
-                    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-                    <link
-                        rel="preload"
-                        href="https://cdn.jsdelivr.net/gh/chaijax/kalpurush@main/Kalpurush.ttf"
-                        as="font"
-                        type="font/ttf"
-                        crossOrigin="anonymous"
-                    />
                     <link
                         rel="stylesheet"
                         href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -30,23 +17,20 @@ export default function RootLayout({
                         crossOrigin="anonymous"
                     />
                 </head>
-                <body className={`${notoSansBengali.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning={true}>
-                      <ThemeProvider attribute="class"
-                                     defaultTheme="system"
-                                     enableSystem
-                                     disableTransitionOnChange>
-                          {children}
-                      </ThemeProvider>
+                <body className={`${roboto.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning={true}>
+                    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+                        {children}
+                    </ThemeProvider>
                 </body>
             </html>
         </AuthProvider>
     );
 }
 
-const notoSansBengali = Noto_Sans_Bengali({
-    variable: "--font-bengali",
-    subsets: ["bengali"],
-    weight: ["400", "500", "600", "700"],
+const roboto = Roboto({
+    variable: "--font-roboto",
+    subsets: ["latin"],
+    weight: ["400", "500", "700"],
     display: "swap",
 });
 

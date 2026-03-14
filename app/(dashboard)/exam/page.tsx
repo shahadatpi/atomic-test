@@ -142,7 +142,7 @@ export default function ExamPage() {
   // ── Loading states ────────────────────────────────────────────────────
   if (isPending || !session) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
         <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
       </div>
     )

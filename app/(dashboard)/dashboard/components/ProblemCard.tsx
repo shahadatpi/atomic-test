@@ -60,7 +60,7 @@ export default function ProblemCard({
   }
 
   return (
-      <div className="bg-card border border-border rounded-xl p-6 space-y-6">
+      <div className="bg-card border border-border rounded-xl p-6 space-y-6" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

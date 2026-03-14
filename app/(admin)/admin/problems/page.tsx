@@ -699,7 +699,7 @@ function ProblemCard({ problem: init, onDelete, number }: {
         />
       )}
 
-      <div className="bg-card border border-border rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors">
+      <div className="bg-card border border-border rounded-2xl overflow-hidden hover:border-zinc-700 transition-colors" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
         <div className="px-5 py-4 cursor-pointer" onClick={() => setExpanded(e => !e)}>
           <div className="flex items-start gap-4">
             <div className="shrink-0 w-9 h-9 rounded-xl bg-muted border border-border flex items-center justify-center mt-0.5">

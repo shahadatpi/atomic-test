@@ -60,7 +60,7 @@ function DashboardInner() {
 
   if (isPending || !session) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center" >
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground/70 text-sm font-mono">Loading…</p>

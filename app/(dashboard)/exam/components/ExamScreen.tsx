@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react"
 import MathText from "@/components/math/MathText"
-import { OptionsGrid } from "@/components/shared/OptionsGrid"
 import type { ExamProblem, ExamAnswer, ExamConfig } from "../types"
 
 interface ExamScreenProps {
@@ -65,7 +64,7 @@ export function ExamScreen({ config, problems, onSubmit }: ExamScreenProps) {
   const progress      = Math.round((answeredCount / problems.length) * 100)
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');`}</style>
 
       {/* ── Sticky header ────────────────────────────────────────────── */}
@@ -105,29 +104,44 @@ export function ExamScreen({ config, problems, onSubmit }: ExamScreenProps) {
         {problems.map((problem, idx) => {
           const selected = answers[problem.id]
           return (
-            <div key={problem.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-5">
+            <div key={problem.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
 
               {/* Question header */}
               <div className="flex items-start gap-3">
                 <span className="shrink-0 w-7 h-7 rounded-lg bg-zinc-800 flex items-center justify-center text-xs font-mono text-zinc-400 mt-0.5">
                   {idx + 1}
                 </span>
-                <div className="flex-1 text-sm text-zinc-100 leading-relaxed min-w-0">
+                <div className="flex-1 text-sm text-zinc-100 leading-relaxed">
                   <MathText text={problem.question} />
                 </div>
               </div>
 
-              <OptionsGrid
-                variant="exam"
-                options={[
-                  { key: "a", value: problem.option_a },
-                  { key: "b", value: problem.option_b },
-                  { key: "c", value: problem.option_c },
-                  { key: "d", value: problem.option_d },
-                ]}
-                selected={selected ?? null}
-                onSelect={key => setAnswers(a => ({ ...a, [problem.id]: key }))}
-              />
+              {/* Options — 2×2 grid, no tags shown during exam */}
+              <div className="grid grid-cols-2 gap-2 pl-10">
+                {OPTION_KEYS.map(key => {
+                  const value     = problem[`option_${key}` as keyof ExamProblem] as string
+                  const isSelected = selected === key
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setAnswers(a => ({ ...a, [problem.id]: key }))}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left text-sm transition-all ${
+                        isSelected
+                          ? "border-emerald-400 bg-emerald-400/10 text-emerald-300"
+                          : "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/40 text-zinc-300"
+                      }`}
+                    >
+                      <span className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center text-xs font-mono font-bold uppercase ${
+                        isSelected ? "bg-emerald-400 text-zinc-950" : "bg-zinc-800 text-zinc-500"
+                      }`}>
+                        {key}
+                      </span>
+                      <span className="flex-1 text-xs leading-snug"><MathText text={value} /></span>
+                      {isSelected && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )
         })}
