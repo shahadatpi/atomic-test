@@ -37,11 +37,13 @@ export interface Problem {
   option_d:       string;
   correct_answer: string;
   explanation:    string | null;
+  hint:           string | null;
   difficulty:     string;
+  is_free:        boolean;
   marks:          number | null;
   exam_year:      string | null;
   exam_institute: string | null;
-  problem_type:   string;
+  problem_type:   string | null;
   source:         string | null;
   tags:           string[] | null;
   subjects:       { name: string };
@@ -102,8 +104,8 @@ function BrowseList({ filtered, page, pageSize, setPage, isSelected, toggleSelec
   return (
     <div className="space-y-3">
       {/* Top pagination */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-700 font-mono">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <span className="text-xs text-zinc-700 font-mono text-center sm:text-left">
           {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} / {filtered.length}
         </span>
         <Pagination page={page} totalPages={totalPages} onChange={goTo} />
@@ -142,46 +144,54 @@ function Pagination({ page, totalPages, onChange }: {
   if (end - start < PAGES_SHOWN - 1) start = Math.max(1, end - PAGES_SHOWN + 1);
   const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
 
+  const btnBase = "rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 disabled:opacity-25 disabled:cursor-not-allowed transition-all text-zinc-500 hover:text-zinc-300";
+
   return (
     <div className="flex items-center justify-center gap-1">
+      {/* Prev */}
       <button onClick={() => onChange(page - 1)} disabled={page === 1}
-        className="p-2 rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 disabled:opacity-25 disabled:cursor-not-allowed transition-all text-zinc-500 hover:text-zinc-300">
+        className={`p-2 ${btnBase}`}>
         <ChevronLeft className="w-4 h-4" />
       </button>
 
-      {start > 1 && (
-        <>
-          <button onClick={() => onChange(1)}
-            className="w-9 h-9 rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 transition-all text-xs font-mono text-zinc-500 hover:text-zinc-300">
-            1
+      {/* Mobile: just "page / total" */}
+      <span className="sm:hidden px-3 py-1.5 text-xs font-mono text-zinc-400 border border-zinc-800 rounded-xl">
+        {page} / {totalPages}
+      </span>
+
+      {/* Desktop: full page buttons */}
+      <div className="hidden sm:flex items-center gap-1">
+        {start > 1 && (
+          <>
+            <button onClick={() => onChange(1)} className={`w-9 h-9 text-xs font-mono ${btnBase}`}>1</button>
+            {start > 2 && <span className="w-6 flex items-center justify-center text-zinc-700 text-xs">…</span>}
+          </>
+        )}
+
+        {pages.map(p => (
+          <button key={p} onClick={() => onChange(p)}
+            className={`w-9 h-9 rounded-xl border text-xs font-mono font-medium transition-all ${
+              p === page
+                ? "border-violet-500/50 bg-violet-500/15 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.2)]"
+                : "border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+            }`}>
+            {p}
           </button>
-          {start > 2 && <span className="w-9 h-9 flex items-center justify-center text-zinc-700 text-xs">…</span>}
-        </>
-      )}
+        ))}
 
-      {pages.map(p => (
-        <button key={p} onClick={() => onChange(p)}
-          className={`w-9 h-9 rounded-xl border text-xs font-mono font-medium transition-all ${
-            p === page
-              ? "border-violet-500/50 bg-violet-500/15 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.2)]"
-              : "border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300"
-          }`}>
-          {p}
-        </button>
-      ))}
+        {end < totalPages && (
+          <>
+            {end < totalPages - 1 && <span className="w-6 flex items-center justify-center text-zinc-700 text-xs">…</span>}
+            <button onClick={() => onChange(totalPages)} className={`w-9 h-9 text-xs font-mono ${btnBase}`}>
+              {totalPages}
+            </button>
+          </>
+        )}
+      </div>
 
-      {end < totalPages && (
-        <>
-          {end < totalPages - 1 && <span className="w-9 h-9 flex items-center justify-center text-zinc-700 text-xs">…</span>}
-          <button onClick={() => onChange(totalPages)}
-            className="w-9 h-9 rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 transition-all text-xs font-mono text-zinc-500 hover:text-zinc-300">
-            {totalPages}
-          </button>
-        </>
-      )}
-
+      {/* Next */}
       <button onClick={() => onChange(page + 1)} disabled={page === totalPages}
-        className="p-2 rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 disabled:opacity-25 disabled:cursor-not-allowed transition-all text-zinc-500 hover:text-zinc-300">
+        className={`p-2 ${btnBase}`}>
         <ChevronRight className="w-4 h-4" />
       </button>
     </div>
@@ -284,7 +294,7 @@ function BrowseCard({ problem: p, index, selected, onToggle }: {
 }
 
 /* ── Main page ── */
-export default function PaperBuilderPage() {
+export default function Page() {
   const [problems,    setProblems]    = useState<Problem[]>([]);
   const [subjects,    setSubjects]    = useState<Subject[]>([]);
   const [topics,      setTopics]      = useState<Topic[]>([]);
