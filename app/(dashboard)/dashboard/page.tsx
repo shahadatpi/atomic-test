@@ -83,9 +83,9 @@ function DashboardInner() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background text-foreground" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
+    <div className="flex bg-background text-foreground" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif", minHeight: "100vh" }}>
         {/* Desktop sidebar */}
-        <aside className="hidden lg:flex w-60 shrink-0 border-r border-border flex-col bg-background">
+        <aside className="hidden lg:flex w-60 shrink-0 border-r border-border flex-col bg-background sticky top-0 h-screen">
           <Sidebar {...sidebarProps} />
         </aside>
 
@@ -100,7 +100,7 @@ function DashboardInner() {
         )}
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main className="flex-1 min-w-0 bg-background">
           {/* Topbar hidden for exam/settings — they have their own headers */}
           {tab !== "exam" && tab !== "settings" && (
             <Topbar
