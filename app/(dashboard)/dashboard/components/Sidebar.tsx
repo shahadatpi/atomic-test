@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { signOut } from "@/lib/auth-client"
 import {
   X, LayoutDashboard, BookOpen, BarChart2,
-  Settings, LogOut, GraduationCap, Upload, FileText,
+  Settings, LogOut, GraduationCap, Upload, FileText, Library,
 } from "lucide-react"
 import type { DashboardTab } from "../types"
 
@@ -21,6 +21,7 @@ const NAV = [
   { label: "Practice",  icon: BookOpen,         t: "practice"  as DashboardTab },
   { label: "Progress",  icon: BarChart2,        t: "progress"  as DashboardTab },
   { label: "Exam",      icon: GraduationCap,    t: "exam"      as DashboardTab },
+  { label: "Problems",  icon: Library,          t: "problems"  as DashboardTab },
 ]
 
 export default function Sidebar({ session, tab, isAdmin, onTabChange, onClose }: SidebarProps) {

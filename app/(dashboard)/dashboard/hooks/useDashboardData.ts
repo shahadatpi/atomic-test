@@ -79,8 +79,23 @@ export function useDashboardData({
   }, [userId, refreshAttempts])
 
   // ── Load problems (re-runs when filters change) ───────────────────────
-  const fetchProblems = useCallback(async () => {
+  const fetchProblems = useCallback(async (randomise = false) => {
     setLoadingProblems(true)
+
+    // Get total count first so we can pick a random offset
+    let countQuery = supabase.from("problems").select("id", { count: "exact", head: true })
+    if (subjectFilter) countQuery = countQuery.eq("subject_id", subjectFilter)
+    if (topicFilter)   countQuery = countQuery.eq("topic_id",   topicFilter)
+    if (diffFilter)    countQuery = countQuery.eq("difficulty",  diffFilter)
+    const { count } = await countQuery
+
+    const total  = count ?? 0
+    if (total === 0) { setProblems([]); setLoadingProblems(false); return }
+    const limit  = 20
+    const offset = randomise && total > limit
+      ? Math.floor(Math.random() * (total - limit))
+      : 0
+
     let query = supabase
       .from("problems")
       .select(
@@ -89,7 +104,7 @@ export function useDashboardData({
          subjects(name), topics(name), subtopics(name)`
       )
       .order("created_at", { ascending: false })
-      .limit(20)
+      .range(offset, offset + limit - 1)
 
     if (subjectFilter) query = query.eq("subject_id", subjectFilter)
     if (topicFilter)   query = query.eq("topic_id",   topicFilter)

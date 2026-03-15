@@ -14,7 +14,7 @@ import type { ExamConfig, ExamAnswer, ExamPhase, ExamProblem } from "./types"
 interface Subject { id: string; name: string }
 interface Topic   { id: string; name: string; subject_id: string }
 
-export default function ExamPage() {
+export default function Page() {
   const { data: session, isPending } = useSession()
   const router = useRouter()
 
@@ -62,7 +62,7 @@ export default function ExamPage() {
         subjects(name), topics(name)
       `)
       .eq("topic_id",  cfg.topicId)
-      .eq("is_active", true)
+      .or("problem_type.is.null,and(problem_type.not.ilike.%25cq%25,problem_type.not.ilike.%25written%25)")
       .limit(cfg.questionCount * 2) // fetch extra, then shuffle + trim
 
     if (cfg.difficulty !== "any") {

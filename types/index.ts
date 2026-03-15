@@ -90,6 +90,6 @@ export interface ExamAnswer {
 }
 
 export type ExamPhase    = "setup" | "exam" | "results"
-export type DashboardTab = "overview" | "practice" | "progress" | "exam" | "settings"
+export type DashboardTab = "overview" | "practice" | "progress" | "exam" | "problems" | "settings"
 export type Difficulty   = "easy" | "medium" | "hard"
 export type Answer       = "a" | "b" | "c" | "d"

@@ -42,7 +42,7 @@ function tokenise(text: string): string {
     .replace(/\\begin\{circuitikz\}[\s\S]*?\\end\{circuitikz\}/g,
       m => `%%TIKZ:${encodeURIComponent(m)}%%`)
     // Lists: \begin{itemize} and \begin{enumerate} → %%LIST:%%
-    .replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end\{\1\}/g,
+    .replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end{(?:itemize|enumerate)}/g,
       (_, env, body) => {
         const ordered = env === "enumerate"
         const items = body
@@ -58,10 +58,10 @@ function tokenise(text: string): string {
     .replace(/\\\(([\s\S]*?)\\\)/g,
       (_, inner) => `%%IM:${encodeURIComponent(inner)}%%`)
     // LaTeX environments \begin{align}...\end{align} etc → %%DM:%%
-    .replace(/\\begin\{(align\*?|equation\*?|gather\*?|multline\*?|array)\}([\s\S]*?)\\end\{\1\}/g,
+    .replace(/\\begin\{(align\*?|equation\*?|gather\*?|multline\*?|array)\}([\s\S]*?)\\end{(?:itemize|enumerate)}/g,
       (_, env, body) => `%%DM:${encodeURIComponent(`\\begin{${env}}${body}\\end{${env}}`)}%%`)
     // Lists: \begin{itemize} and \begin{enumerate}
-    .replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end\{\1\}/g,
+    .replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end{(?:itemize|enumerate)}/g,
       (_, env, body) => `%%LIST:${env}:${encodeURIComponent(body)}%%`)
 }
 
@@ -107,18 +107,30 @@ function renderMarkdown(text: string): React.ReactNode[] {
 }
 
 // ── KaTeX render helpers ──────────────────────────────────────────────────
-function renderDisplay(latex: string, key: string): React.ReactNode {
+function safeKatex(latex: string, display: boolean): string {
+  if (!latex || !latex.trim()) return ""
   try {
-    const html = katex.renderToString(latex, { throwOnError: false, displayMode: true })
-    return <span key={key} dangerouslySetInnerHTML={{ __html: html }} style={{ display: "block" }} />
-  } catch { return <span key={key} className="text-red-400 text-xs">[LaTeX error]</span> }
+    return katex.renderToString(latex, { throwOnError: false, displayMode: display, strict: false })
+  } catch {
+    try {
+      // fallback: try escaping and re-rendering
+      return katex.renderToString(latex.replace(/\\/g, "\\"), { throwOnError: false, displayMode: display, strict: "ignore" })
+    } catch {
+      return `<span style="color:#f87171;font-size:0.75rem">[math error]</span>`
+    }
+  }
+}
+
+function renderDisplay(latex: string, key: string): React.ReactNode {
+  const html = safeKatex(latex, true)
+  if (!html) return null
+  return <span key={key} dangerouslySetInnerHTML={{ __html: html }} style={{ display: "block" }} />
 }
 
 function renderInline(latex: string, key: string): React.ReactNode {
-  try {
-    const html = katex.renderToString(latex, { throwOnError: false, displayMode: false })
-    return <span key={key} dangerouslySetInnerHTML={{ __html: html }} />
-  } catch { return <span key={key} className="text-red-400 text-xs">[LaTeX error]</span> }
+  const html = safeKatex(latex, false)
+  if (!html) return null
+  return <span key={key} dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 // ── Render a single segment (tokens already extracted) ───────────────────

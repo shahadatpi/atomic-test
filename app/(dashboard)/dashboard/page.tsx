@@ -1,22 +1,24 @@
 "use client"
 
 import { useEffect, useState, Suspense } from "react"
+import dynamic from "next/dynamic"
 import { useSession } from "@/lib/auth-client"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
 import Sidebar     from "./components/Sidebar"
 import Topbar      from "./components/Topbar"
-import OverviewTab from "./components/OverviewTab"
-import PracticeTab from "./components/PracticeTab"
-import ProgressTab from "./components/ProgressTab"
+const OverviewTab = dynamic(() => import("./components/OverviewTab"), { ssr: false })
+const PracticeTab = dynamic(() => import("./components/PracticeTab"), { ssr: false })
+const ProgressTab = dynamic(() => import("./components/ProgressTab"), { ssr: false })
 
 import { useDashboardData } from "./hooks/useDashboardData"
 import { useStats }         from "./hooks/useStats"
 import type { DashboardTab } from "./types"
 
 // ExamPage is rendered inline (no page navigation) — import its root component
-import ExamRoot    from "../exam/page"
-import SettingsTab from "./components/SettingsTab"
+const ExamRoot = dynamic(() => import("../exam/page"), { ssr: false })
+const SettingsTab = dynamic(() => import("./components/SettingsTab"), { ssr: false })
+const ProblemsTab = dynamic(() => import("./components/ProblemsTab"), { ssr: false })
 
 function DashboardInner() {
   const { data: session, isPending } = useSession()
@@ -81,13 +83,7 @@ function DashboardInner() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
-        .line-clamp-2 { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
-      `}</style>
-
-      <div className="flex h-screen overflow-hidden">
+    <div className="h-screen flex overflow-hidden bg-background text-foreground" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
         {/* Desktop sidebar */}
         <aside className="hidden lg:flex w-60 shrink-0 border-r border-border flex-col bg-background">
           <Sidebar {...sidebarProps} />
@@ -104,7 +100,7 @@ function DashboardInner() {
         )}
 
         {/* Main content */}
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <main className="flex-1 overflow-y-auto bg-background">
           {/* Topbar hidden for exam/settings — they have their own headers */}
           {tab !== "exam" && tab !== "settings" && (
             <Topbar
@@ -119,7 +115,7 @@ function DashboardInner() {
 
           {/* Tab content */}
           {tab === "overview" && (
-            <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1">
+            <div className="px-4 md:px-8 py-6">
               <OverviewTab
                 userId={session?.user?.id ?? ""}
                 correctAttempts={correctAttempts}
@@ -137,28 +133,25 @@ function DashboardInner() {
           )}
 
           {tab === "practice" && (
-            <div className="px-4 md:px-8 pt-4 flex-1 min-h-0 flex overflow-hidden">
+            <div className="px-4 md:px-8 py-6">
               <PracticeTab
                 subjects={subjects}
                 topics={topics}
-                problems={problems}
                 attempts={attempts}
-                loadingProblems={loadingProblems}
-                subjectFilter={subjectFilter}
-                topicFilter={topicFilter}
-                diffFilter={diffFilter}
                 isPremium={isPremium}
-                onSubjectChange={setSubjectFilter}
-                onTopicChange={setTopicFilter}
-                onDiffChange={setDiffFilter}
-                onRefresh={fetchProblems}
                 onSaveAttempt={saveAttempt}
               />
             </div>
           )}
 
+          {tab === "problems" && (
+            <div className="px-4 md:px-8 py-6">
+              <ProblemsTab isPremium={isPremium} />
+            </div>
+          )}
+
           {tab === "progress" && (
-            <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1">
+            <div className="px-4 md:px-8 py-6">
               <ProgressTab
                 attempts={attempts}
                 totalAttempts={totalAttempts}
@@ -173,7 +166,6 @@ function DashboardInner() {
           {tab === "exam"     && <ExamRoot />}
           {tab === "settings" && <SettingsTab />}
         </main>
-      </div>
     </div>
   )
 }
