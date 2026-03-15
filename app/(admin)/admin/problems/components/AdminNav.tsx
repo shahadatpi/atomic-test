@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { LayoutDashboard, ListTodo, PlusCircle } from "lucide-react";
+import { LayoutDashboard, ListTodo, PlusCircle, Upload } from "lucide-react";
 
-type Page = "problems" | "add-problem";
+type Page = "problems" | "add-problem" | "bulk-import";
 
 interface NavLink {
   id:    Page;
@@ -13,6 +13,7 @@ interface NavLink {
 const LINKS: NavLink[] = [
   { id: "problems",    href: "/admin/problems",    label: "Problems",    icon: ListTodo   },
   { id: "add-problem", href: "/admin/add-problem", label: "Add Problem", icon: PlusCircle },
+  { id: "bulk-import", href: "/admin/bulk-import", label: "Bulk Import", icon: Upload      },
 ];
 
 const pill =
@@ -34,7 +35,6 @@ export default function AdminNav({ current }: { current: Page }) {
 
       <span className="text-zinc-700 text-xs">/</span>
 
-      {/* Admin pages */}
       {LINKS.map((link, i) => {
         const Icon = link.icon;
         return (

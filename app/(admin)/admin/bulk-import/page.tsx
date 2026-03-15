@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Upload, CheckCircle, XCircle, Loader2, ArrowLeft, Trash2 } from "lucide-react";
+import AdminNav from "../problems/components/AdminNav";
 import Link from "next/link";
 
 const supabase = createClient(
@@ -16,7 +17,7 @@ interface Result {
   error?: string;
 }
 
-export default function BulkImportPage() {
+export default function Page() {
   const [text, setText]       = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
@@ -91,6 +92,9 @@ export default function BulkImportPage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-6">
+
+        {/* Navigation */}
+        <AdminNav current="bulk-import" />
 
         {/* Header */}
         <div className="flex items-center gap-4">

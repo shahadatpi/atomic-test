@@ -46,7 +46,8 @@ function DashboardInner() {
 
   useEffect(() => { setSidebarOpen(false) }, [pathname])
 
-  const isAdmin = (session?.user as any)?.role === "admin"
+  const isAdmin   = (session?.user as any)?.role === "admin"
+  const isPremium = isAdmin || (session?.user as any)?.plan === "pro"
 
   const {
     subjects, topics, problems, attempts,
@@ -80,7 +81,7 @@ function DashboardInner() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
         .line-clamp-2 { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
@@ -103,7 +104,7 @@ function DashboardInner() {
         )}
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Topbar hidden for exam/settings — they have their own headers */}
           {tab !== "exam" && tab !== "settings" && (
             <Topbar
@@ -118,7 +119,7 @@ function DashboardInner() {
 
           {/* Tab content */}
           {tab === "overview" && (
-            <div className="px-4 md:px-8 py-6">
+            <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1">
               <OverviewTab
                 userId={session?.user?.id ?? ""}
                 correctAttempts={correctAttempts}
@@ -136,7 +137,7 @@ function DashboardInner() {
           )}
 
           {tab === "practice" && (
-            <div className="px-4 md:px-8 py-6">
+            <div className="px-4 md:px-8 pt-4 flex-1 min-h-0 flex overflow-hidden">
               <PracticeTab
                 subjects={subjects}
                 topics={topics}
@@ -146,6 +147,7 @@ function DashboardInner() {
                 subjectFilter={subjectFilter}
                 topicFilter={topicFilter}
                 diffFilter={diffFilter}
+                isPremium={isPremium}
                 onSubjectChange={setSubjectFilter}
                 onTopicChange={setTopicFilter}
                 onDiffChange={setDiffFilter}
@@ -156,7 +158,7 @@ function DashboardInner() {
           )}
 
           {tab === "progress" && (
-            <div className="px-4 md:px-8 py-6">
+            <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1">
               <ProgressTab
                 attempts={attempts}
                 totalAttempts={totalAttempts}

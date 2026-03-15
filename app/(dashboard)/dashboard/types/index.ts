@@ -6,7 +6,11 @@ export interface Problem {
   option_c: string
   option_d: string
   correct_answer: string
-  explanation: string | null
+  explanation:   string | null
+  explanation_a: string | null
+  explanation_b: string | null
+  explanation_c: string | null
+  explanation_d: string | null
   hint: string | null
   difficulty: string
   is_free: boolean

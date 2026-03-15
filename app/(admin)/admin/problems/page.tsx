@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Search, ChevronDown, Loader2, BookOpen, Trash2, AlertTriangle } from "lucide-react";
+import AdminNav from "./components/AdminNav";
 import ProblemCard from "./components/ProblemCard";
 import { Problem, Subject, Topic, Subtopic } from "./types";
 
@@ -193,6 +194,8 @@ export default function ProblemsListPage() {
       )}
 
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Navigation */}
+        <AdminNav current="problems" />
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-violet-400 font-mono tracking-widest mb-1">ADMIN</p>
