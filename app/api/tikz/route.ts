@@ -1,5 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 
+// ── In-process cache: hash(code) → { buf, mime, ts } ─────────────────────────
+// Persists across requests within the same server process.
+// TTL: 10 minutes per entry.
+const TTL_MS = 10 * 60 * 1000;
+
+interface CacheEntry {
+  buf:  ArrayBuffer;
+  mime: string;
+  ts:   number;        // Date.now() when cached
+}
+
+const cache = new Map<string, CacheEntry>();
+
+function cacheKey(code: string): string {
+  return createHash("sha256").update(code).digest("hex");
+}
+
+function getCache(key: string): CacheEntry | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > TTL_MS) { cache.delete(key); return null; }
+  return entry;
+}
+
+function setCache(key: string, buf: ArrayBuffer, mime: string) {
+  // Evict entries older than TTL to avoid unbounded growth
+  for (const [k, v] of cache) {
+    if (Date.now() - v.ts > TTL_MS) cache.delete(k);
+  }
+  cache.set(key, { buf, mime, ts: Date.now() });
+}
+
+// ── Route handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   let code: string;
   try {
@@ -13,6 +47,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No TikZ code provided" }, { status: 400 });
   }
 
+  // ── Cache hit ────────────────────────────────────────────────────────────────
+  const key   = cacheKey(code);
+  const hit   = getCache(key);
+  if (hit) {
+    console.log("[tikz/route] cache hit:", key.slice(0, 8));
+    return new NextResponse(hit.buf, {
+      headers: {
+        "Content-Type":  hit.mime,
+        "Cache-Control": "public, max-age=600",
+        "X-Cache":       "HIT",
+      },
+    });
+  }
+
+  // ── Build LaTeX document ─────────────────────────────────────────────────────
   let latexDoc: string;
 
   if (code.trimStart().startsWith("\\documentclass")) {
@@ -29,14 +78,13 @@ export async function POST(req: NextRequest) {
   } else {
     let tikz = code;
 
-    // Strip centering wrappers — standalone handles alignment
     tikz = tikz
       .replace(/\\begin\{center\}/g, "")
       .replace(/\\end\{center\}/g,   "")
       .replace(/\\centering\b/g,     "")
       .trim();
 
-    const isCircuit = tikz.includes("\\begin{circuitikz}") || tikz.includes("\\ctikzset");
+    const isCircuit  = tikz.includes("\\begin{circuitikz}") || tikz.includes("\\ctikzset");
     const hasBengali = /[\u0980-\u09FF]/.test(tikz);
 
     const fontPreamble = hasBengali
@@ -72,6 +120,7 @@ ${tikz}
 \\end{document}`;
   }
 
+  // ── Compile ──────────────────────────────────────────────────────────────────
   const serviceUrl = (process.env.TIKZ_SERVICE_URL ?? "https://atomic-test.onrender.com")
     .replace(/\/$/, "");
 
@@ -92,37 +141,41 @@ ${tikz}
     const contentType = compileRes.headers.get("Content-Type") ?? "";
     console.log("[tikz/route] compile ok, content-type:", contentType);
 
-    // PNG — return directly
+    // PNG
     if (contentType.includes("image/png")) {
       const buf = await compileRes.arrayBuffer();
+      setCache(key, buf, "image/png");
       return new NextResponse(buf, {
-        headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" },
+        headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=600", "X-Cache": "MISS" },
       });
     }
 
-    // PDF — return directly (TikZRenderer shows in iframe)
+    // PDF
     if (contentType.includes("application/pdf")) {
       const buf = await compileRes.arrayBuffer();
+      setCache(key, buf, "application/pdf");
       return new NextResponse(buf, {
-        headers: { "Content-Type": "application/pdf", "Cache-Control": "public, max-age=86400" },
+        headers: { "Content-Type": "application/pdf", "Cache-Control": "public, max-age=600", "X-Cache": "MISS" },
       });
     }
 
-    // JSON fallback { pdf: "<base64>" } when ImageMagick unavailable on server
+    // JSON fallback { pdf / png base64 }
     const json = await compileRes.json().catch(() => null);
     console.log("[tikz/route] json keys:", json ? Object.keys(json) : "null");
 
     if (json?.pdf) {
-      const pdfBytes = Buffer.from(json.pdf, "base64");
-      return new NextResponse(pdfBytes, {
-        headers: { "Content-Type": "application/pdf", "Cache-Control": "public, max-age=86400" },
+      const buf = Buffer.from(json.pdf, "base64").buffer;
+      setCache(key, buf, "application/pdf");
+      return new NextResponse(buf, {
+        headers: { "Content-Type": "application/pdf", "Cache-Control": "public, max-age=600", "X-Cache": "MISS" },
       });
     }
 
     if (json?.png) {
-      const pngBytes = Buffer.from(json.png, "base64");
-      return new NextResponse(pngBytes, {
-        headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" },
+      const buf = Buffer.from(json.png, "base64").buffer;
+      setCache(key, buf, "image/png");
+      return new NextResponse(buf, {
+        headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=600", "X-Cache": "MISS" },
       });
     }
 
