@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react"
 import MathText from "@/components/math/MathText"
-import type { ExamProblem, ExamAnswer, ExamConfig } from "../types"
+import type { ExamProblem, ExamAnswer, ExamConfig } from "@/types"
 
 interface ExamScreenProps {
   config:    ExamConfig
@@ -64,7 +64,7 @@ export function ExamScreen({ config, problems, onSubmit }: ExamScreenProps) {
   const progress      = Math.round((answeredCount / problems.length) * 100)
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
+    <div className="min-h-0 bg-zinc-950 text-zinc-100" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');`}</style>
 
       {/* ── Sticky header ────────────────────────────────────────────── */}
