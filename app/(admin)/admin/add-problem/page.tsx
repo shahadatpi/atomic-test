@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import katex from "katex";
@@ -8,6 +9,7 @@ import {
   CheckCircle, AlertCircle, Eye, EyeOff,
   Loader2, Plus, Trash2, Tag, ChevronDown,
 } from "lucide-react";
+import AdminNav from "../problems/components/AdminNav";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -293,7 +295,8 @@ export default function ProblemEditor() {
   const createTopic = async (name: string) => {
     if (!form.subject_id) { setStatus("error"); setErrMsg("Select a subject first"); return; }
     setCreatingTopic(true);
-    const { error: insErr } = await supabase.from("topics").insert({ name, subject_id: form.subject_id, sort_order: 0 });
+    const topicSlug = (name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/^-+|-+$/g, "") || "topic") + "-" + Math.random().toString(36).slice(2, 9);
+    const { error: insErr } = await supabase.from("topics").insert({ name, subject_id: form.subject_id, sort_order: 0, slug: topicSlug });
     if (insErr) { setCreatingTopic(false); setStatus("error"); setErrMsg(`Could not create topic: ${insErr.message}`); return; }
     const { data } = await supabase.from("topics").select("id, name, subject_id").eq("name", name).eq("subject_id", form.subject_id).order("sort_order", { ascending: false }).limit(1).single();
     setCreatingTopic(false);
@@ -303,7 +306,8 @@ export default function ProblemEditor() {
   const createSubtopic = async (name: string) => {
     if (!form.topic_id) { setStatus("error"); setErrMsg("Select a topic first"); return; }
     setCreatingSubtopic(true);
-    const { error: insErr } = await supabase.from("subtopics").insert({ name, topic_id: form.topic_id, sort_order: 0 });
+    const subtopicSlug = (name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/^-+|-+$/g, "") || "subtopic") + "-" + Math.random().toString(36).slice(2, 9);
+    const { error: insErr } = await supabase.from("subtopics").insert({ name, topic_id: form.topic_id, sort_order: 0, slug: subtopicSlug });
     if (insErr) { setCreatingSubtopic(false); setStatus("error"); setErrMsg(`Could not create subtopic: ${insErr.message}`); return; }
     const { data } = await supabase.from("subtopics").select("id, name, topic_id").eq("name", name).eq("topic_id", form.topic_id).order("sort_order", { ascending: false }).limit(1).single();
     setCreatingSubtopic(false);
@@ -346,13 +350,16 @@ export default function ProblemEditor() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground py-10 px-4" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background text-foreground py-8 px-4" style={{ fontFamily: "'Kalpurush', 'Roboto', sans-serif" }}>
+      <div className="max-w-3xl mx-auto space-y-5">
+
+        {/* Navigation */}
+        <AdminNav current="add-problem" />
 
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-violet-400 font-mono tracking-widest mb-1">ADMIN</p>
+            <p className="text-[11px] text-violet-400 font-mono tracking-widest mb-1">ADMIN</p>
             <h1 className="text-2xl font-bold text-foreground">Add Problem</h1>
           </div>
           <button onClick={() => setPreview(p => !p)}

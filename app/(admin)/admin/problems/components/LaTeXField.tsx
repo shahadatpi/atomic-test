@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import MathText from "@/components/math/MathText";
 
+function autoSize(el: HTMLTextAreaElement, minRows: number) {
+  el.style.height = "auto";
+  el.style.height = Math.max(el.scrollHeight, minRows * 24) + "px";
+}
+
 export default function LaTeXField({
-  label, value, onChange, rows = 3, placeholder, isCorrect, autoGrow = false,
+  label, value, onChange, rows = 3, placeholder, isCorrect, autoGrow = true,
 }: {
   label:        string;
   value:        string;
@@ -16,13 +21,23 @@ export default function LaTeXField({
   autoGrow?:    boolean;
 }) {
   const [preview, setPreview] = useState(false);
-  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Callback ref: fires whenever the textarea mounts (including when accordion opens)
+  const taRef = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el || !autoGrow) return;
+    autoSize(el, rows);
+  }, [autoGrow, rows]);
+
+  // Also recalculate when value changes externally
+  const internalRef = useRef<HTMLTextAreaElement | null>(null);
+  const setRef = useCallback((el: HTMLTextAreaElement | null) => {
+    internalRef.current = el;
+    (taRef as any)(el);
+  }, [taRef]);
 
   useEffect(() => {
-    if (!autoGrow || !taRef.current) return;
-    const ta = taRef.current;
-    ta.style.height = "auto";
-    ta.style.height = Math.max(ta.scrollHeight, rows * 24) + "px";
+    if (!autoGrow || !internalRef.current) return;
+    autoSize(internalRef.current, rows);
   }, [value, autoGrow, rows]);
 
   return (
@@ -35,16 +50,26 @@ export default function LaTeXField({
         </button>
       </div>
       {preview ? (
-        <div className={`min-h-[100px] rounded-xl px-4 py-3 text-sm leading-relaxed border ${
+        <div className={`min-h-[80px] rounded-xl px-4 py-3 text-sm leading-relaxed border ${
           isCorrect ? "border-emerald-400/30 bg-emerald-400/5 text-emerald-200" : "border-zinc-800 bg-zinc-950 text-zinc-300"
         }`}>
           {value.trim() ? <MathText text={value} /> : <span className="text-zinc-700 italic text-xs">empty</span>}
         </div>
       ) : (
-        <textarea ref={taRef} value={value} onChange={e => onChange(e.target.value)}
-          rows={rows} placeholder={placeholder}
+        <textarea
+          ref={setRef}
+          value={value}
+          rows={rows}
+          placeholder={placeholder}
+          onChange={e => {
+            onChange(e.target.value);
+            if (autoGrow) autoSize(e.target, rows);
+          }}
           style={autoGrow ? { resize: "none", overflow: "hidden" } : undefined}
-          className="w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700 outline-none transition-all font-mono min-h-[80px] resize-y"
+          className={`w-full bg-zinc-950 border border-zinc-800 focus:border-violet-500/50
+                      rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-700
+                      outline-none transition-colors font-mono min-h-[80px]
+                      ${autoGrow ? "" : "resize-y"}`}
         />
       )}
     </div>

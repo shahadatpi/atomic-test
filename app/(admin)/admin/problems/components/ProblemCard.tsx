@@ -54,26 +54,88 @@ function McqOptions({ problem }: { problem: Problem }) {
 }
 
 /* ── CQ sub-questions: matches paper-builder style ── */
+/**
+ * Split a single explanation string into per-subquestion parts.
+ * Supports formats like:
+ *   "ক) answer ক  খ) answer খ  গ) answer গ  ঘ) answer ঘ"
+ *   "ক. answer  খ. answer"
+ *   Plain text → shown under ক only
+ */
+function splitExplanation(expl: string | null, count: number): (string | null)[] {
+  const result: (string | null)[] = Array(count).fill(null);
+  if (!expl) return result;
+
+  // Try splitting by Bengali label markers: ক) ক. খ) খ. etc.
+  const LABELS = ["ক","খ","গ","ঘ"];
+  const pattern = new RegExp(
+    `(${LABELS.slice(0, count).map(l => `${l}[).]`).join("|")})`,
+    "g"
+  );
+  const tokens = expl.split(pattern).map(s => s.trim()).filter(Boolean);
+
+  if (tokens.length <= 1) {
+    // No split markers found — put whole explanation under first subquestion
+    result[0] = expl.trim();
+    return result;
+  }
+
+  let current = -1;
+  for (const token of tokens) {
+    const idx = LABELS.findIndex(l => token === `${l})` || token === `${l}.`);
+    if (idx !== -1 && idx < count) { current = idx; continue; }
+    if (current >= 0) result[current] = (result[current] ? result[current] + " " : "") + token;
+  }
+  return result;
+}
+
 function CqOptions({ problem }: { problem: Problem }) {
   const parts = (["a","b","c","d"] as const).map((o, i) => ({
+    key:   o,
     label: ["ক","খ","গ","ঘ"][i],
     marks: ["১","২","৩","৪"][i],
     text:  (problem[`option_${o}` as keyof Problem] as string) ?? "",
   })).filter(p => p.text);
 
+  const explanations = splitExplanation(problem.explanation, parts.length);
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+
   if (parts.length === 0) return null;
 
   return (
     <div className="space-y-1.5">
-      {parts.map(({ label, marks, text }) => (
-        <div key={label} className="flex items-baseline gap-2 text-xs border border-zinc-800 rounded-xl px-3 py-2">
-          <span className="font-bold text-violet-400 shrink-0">{label}.</span>
-          <span className="flex-1 text-zinc-300 leading-snug">
-            <MathText text={text} />
-          </span>
-          <span className="text-xs font-mono text-zinc-600 shrink-0">{marks}</span>
-        </div>
-      ))}
+      {parts.map(({ label, marks, text }, i) => {
+        const expl   = explanations[i];
+        const isOpen = openIdx === i;
+        return (
+          <div key={label} className="border border-zinc-800 rounded-xl overflow-hidden">
+            {/* Subquestion row */}
+            <div className="flex items-baseline gap-2 text-xs px-3 py-2">
+              <span className="font-bold text-violet-400 shrink-0">{label}.</span>
+              <span className="flex-1 text-zinc-300 leading-snug">
+                <MathText text={text} />
+              </span>
+              <span className="text-xs font-mono text-zinc-600 shrink-0 mr-2">{marks}</span>
+              {expl && (
+                <button
+                  onClick={() => setOpenIdx(isOpen ? null : i)}
+                  className="flex items-center gap-1 text-[10px] font-mono text-amber-400/70
+                             hover:text-amber-400 transition-colors shrink-0"
+                >
+                  সমাধান
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                </button>
+              )}
+            </div>
+            {/* Collapsible explanation */}
+            {expl && isOpen && (
+              <div className="px-3 pb-2.5 pt-1 text-xs text-zinc-400 leading-relaxed
+                              border-t border-zinc-800/60 bg-zinc-950/50">
+                <MathText text={expl} />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -180,8 +242,8 @@ export default function ProblemCard({ problem: init, onDelete, number }: {
 
             {cq ? <CqOptions problem={problem} /> : <McqOptions problem={problem} />}
 
-            {/* Explanation */}
-            {problem.explanation && (
+            {/* Explanation — only shown globally for MCQ; CQ shows per-subquestion */}
+            {!cq && problem.explanation && (
               <div className="border border-zinc-800 rounded-xl overflow-hidden">
                 <button onClick={() => setExplOpen(e => !e)}
                   className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-mono text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors">
