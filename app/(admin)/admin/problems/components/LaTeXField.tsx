@@ -21,20 +21,22 @@ export default function LaTeXField({
   autoGrow?:    boolean;
 }) {
   const [preview, setPreview] = useState(false);
-
-  // Callback ref: fires whenever the textarea mounts (including when accordion opens)
-  const taRef = useCallback((el: HTMLTextAreaElement | null) => {
-    if (!el || !autoGrow) return;
-    autoSize(el, rows);
-  }, [autoGrow, rows]);
-
-  // Also recalculate when value changes externally
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Callback ref — fires when textarea mounts into DOM.
+  // Uses setTimeout so the browser paints any parent accordion open
+  // before we measure scrollHeight (avoids getting 0 height).
   const setRef = useCallback((el: HTMLTextAreaElement | null) => {
     internalRef.current = el;
-    (taRef as any)(el);
-  }, [taRef]);
+    if (!el || !autoGrow) return;
+    // Immediate attempt (works when already visible)
+    autoSize(el, rows);
+    // Delayed attempt (works when inside a just-opened accordion)
+    const t = setTimeout(() => autoSize(el, rows), 50);
+    return () => clearTimeout(t);
+  }, [autoGrow, rows]);
 
+  // Re-measure whenever value changes programmatically
   useEffect(() => {
     if (!autoGrow || !internalRef.current) return;
     autoSize(internalRef.current, rows);
@@ -43,17 +45,31 @@ export default function LaTeXField({
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className={`text-xs font-mono ${isCorrect ? "text-violet-400" : "text-zinc-500"}`}>{label}</span>
-        <button type="button" onClick={() => setPreview(p => !p)}
-          className="flex items-center gap-1 text-xs text-zinc-600 hover:text-violet-400 transition-colors">
-          {preview ? <><EyeOff className="w-3 h-3" /> Edit</> : <><Eye className="w-3 h-3" /> Preview</>}
+        <span className={`text-xs font-mono ${isCorrect ? "text-violet-400" : "text-zinc-500"}`}>
+          {label}
+        </span>
+        <button
+          type="button"
+          onClick={() => setPreview(p => !p)}
+          className="flex items-center gap-1 text-xs text-zinc-600 hover:text-violet-400 transition-colors"
+        >
+          {preview
+            ? <><EyeOff className="w-3 h-3" /> Edit</>
+            : <><Eye   className="w-3 h-3" /> Preview</>
+          }
         </button>
       </div>
+
       {preview ? (
         <div className={`min-h-[80px] rounded-xl px-4 py-3 text-sm leading-relaxed border ${
-          isCorrect ? "border-emerald-400/30 bg-emerald-400/5 text-emerald-200" : "border-zinc-800 bg-zinc-950 text-zinc-300"
+          isCorrect
+            ? "border-emerald-400/30 bg-emerald-400/5 text-emerald-200"
+            : "border-zinc-800 bg-zinc-950 text-zinc-300"
         }`}>
-          {value.trim() ? <MathText text={value} /> : <span className="text-zinc-700 italic text-xs">empty</span>}
+          {value.trim()
+            ? <MathText text={value} />
+            : <span className="text-zinc-700 italic text-xs">empty</span>
+          }
         </div>
       ) : (
         <textarea

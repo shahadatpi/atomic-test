@@ -8,7 +8,11 @@ export interface Problem {
   option_c:       string | null;
   option_d:       string | null;
   correct_answer: string | null;
-  explanation:    string | null;
+  explanation:    string | null;   // MCQ explanation
+  explanation_a:  string | null;   // CQ subquestion ক explanation
+  explanation_b:  string | null;   // CQ subquestion খ explanation
+  explanation_c:  string | null;   // CQ subquestion গ explanation
+  explanation_d:  string | null;   // CQ subquestion ঘ explanation
   difficulty:     string;
   is_free:        boolean;
   tags:           string[] | null;

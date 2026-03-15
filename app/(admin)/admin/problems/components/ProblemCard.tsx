@@ -1,6 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 import { ChevronDown, CheckCircle, Trash2, Pencil } from "lucide-react";
 import MathText, { stripTikz } from "@/components/math/MathText";
 import DiffBadge from "./DiffBadge";
@@ -61,76 +67,130 @@ function McqOptions({ problem }: { problem: Problem }) {
  *   "ক. answer  খ. answer"
  *   Plain text → shown under ক only
  */
-function splitExplanation(expl: string | null, count: number): (string | null)[] {
+// Read CQ explanations — prefer dedicated columns, fall back to parsing old explanation field
+function getCqExplanations(problem: Problem, count: number): (string | null)[] {
+  const fromCols = [
+    problem.explanation_a ?? null,
+    problem.explanation_b ?? null,
+    problem.explanation_c ?? null,
+    problem.explanation_d ?? null,
+  ].slice(0, count);
+
+  // If any dedicated column has data, use them
+  if (fromCols.some(Boolean)) return fromCols;
+
+  // Fallback: parse old explanation field with ক) খ) গ) ঘ) markers
   const result: (string | null)[] = Array(count).fill(null);
+  const expl = problem.explanation;
   if (!expl) return result;
 
-  // Try splitting by Bengali label markers: ক) ক. খ) খ. etc.
   const LABELS = ["ক","খ","গ","ঘ"];
-  const pattern = new RegExp(
-    `(${LABELS.slice(0, count).map(l => `${l}[).]`).join("|")})`,
-    "g"
-  );
-  const tokens = expl.split(pattern).map(s => s.trim()).filter(Boolean);
+  const pattern = new RegExp(`(${LABELS.slice(0, count).map(l => `${l}[).]`).join("|")})`, "g");
+  const tokens  = expl.split(pattern).map(s => s.trim()).filter(Boolean);
 
-  if (tokens.length <= 1) {
-    // No split markers found — put whole explanation under first subquestion
-    result[0] = expl.trim();
-    return result;
-  }
+  if (tokens.length <= 1) { result[0] = expl.trim(); return result; }
 
   let current = -1;
   for (const token of tokens) {
     const idx = LABELS.findIndex(l => token === `${l})` || token === `${l}.`);
     if (idx !== -1 && idx < count) { current = idx; continue; }
-    if (current >= 0) result[current] = (result[current] ? result[current] + " " : "") + token;
+    if (current >= 0) result[current] = (result[current] ? result[current] + "\n" : "") + token;
   }
   return result;
 }
 
+/**
+ * Converts LaTeX document-level commands into MathText-renderable format.
+ * - \subsection*{title} → bold title line
+ * - \begin{equation*}...\end{equation*} → $$...$$
+ * - \begin{align*}...\end{align*} → $$\begin{aligned}...\end{aligned}$$
+ * - \\ line breaks → newlines
+ */
+function preprocessExplanation(text: string): string {
+  let t = text;
+  // Section headings → plain bold text (strip the command, keep content)
+  t = t.replace(/\\(?:sub)*section\*?\{([^}]*)\}/g, "**$1**");
+  // equation* / align* → $$ display math $$
+  t = t.replace(/\\begin\{equation\*?\}([\s\S]*?)\\end\{equation\*?\}/g,
+    (_, body) => `$$${body.trim()}$$`);
+  t = t.replace(/\\begin\{align\*?\}([\s\S]*?)\\end\{align\*?\}/g,
+    (_, body) => `$$\\begin{aligned}${body.trim()}\\end{aligned}$$`);
+  // \ line breaks inside math-free zones → newline
+  t = t.replace(/\\\\/g, "\n");
+  return t;
+}
+
 function CqOptions({ problem }: { problem: Problem }) {
-  const parts = (["a","b","c","d"] as const).map((o, i) => ({
+  // Keep original index (0-3) so explanations[i] always maps to the right slot
+  const allParts = (["a","b","c","d"] as const).map((o, i) => ({
     key:   o,
+    idx:   i,
     label: ["ক","খ","গ","ঘ"][i],
     marks: ["১","২","৩","৪"][i],
     text:  (problem[`option_${o}` as keyof Problem] as string) ?? "",
-  })).filter(p => p.text);
-
-  const explanations = splitExplanation(problem.explanation, parts.length);
+  }));
+  // Show a part if it has text OR if it has an explanation (don't hide slots that have solutions)
+  const explanations = getCqExplanations(problem, 4);
+  const parts = allParts.filter(p => p.text || explanations[p.idx]);
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   if (parts.length === 0) return null;
 
   return (
-    <div className="space-y-1.5">
-      {parts.map(({ label, marks, text }, i) => {
-        const expl   = explanations[i];
-        const isOpen = openIdx === i;
+    <div className="rounded-xl border border-zinc-800 overflow-hidden divide-y divide-zinc-800">
+      {parts.map(({ label, marks, text, idx }) => {
+        const expl   = explanations[idx];
+        const isOpen = openIdx === idx;
         return (
-          <div key={label} className="border border-zinc-800 rounded-xl overflow-hidden">
-            {/* Subquestion row */}
-            <div className="flex items-baseline gap-2 text-xs px-3 py-2">
-              <span className="font-bold text-violet-400 shrink-0">{label}.</span>
-              <span className="flex-1 text-zinc-300 leading-snug">
+          <div key={label}>
+            {/* ── Row: label | text | marks | সমাধান ── */}
+            <div className="flex items-center min-h-[40px]">
+
+              {/* Bengali label */}
+              <span className="shrink-0 w-9 flex items-center justify-center
+                               self-stretch border-r border-zinc-800/60
+                               font-bold text-sm text-violet-400">
+                {label}
+              </span>
+
+              {/* Question text */}
+              <span className="flex-1 text-zinc-300 leading-snug px-3 py-2 text-xs">
                 <MathText text={text} />
               </span>
-              <span className="text-xs font-mono text-zinc-600 shrink-0 mr-2">{marks}</span>
-              {expl && (
-                <button
-                  onClick={() => setOpenIdx(isOpen ? null : i)}
-                  className="flex items-center gap-1 text-[10px] font-mono text-amber-400/70
-                             hover:text-amber-400 transition-colors shrink-0"
-                >
-                  সমাধান
-                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-                </button>
-              )}
+
+              {/* Marks */}
+              <span className="shrink-0 w-8 flex items-center justify-center
+                               self-stretch border-l border-zinc-800/60
+                               text-xs font-mono text-zinc-500">
+                {marks}
+              </span>
+
+              {/* সমাধান toggle — always shown, dimmed if no explanation */}
+              <button
+                onClick={() => expl && setOpenIdx(isOpen ? null : idx)}
+                className={`shrink-0 flex items-center gap-1 self-stretch
+                            px-3 border-l border-zinc-800/60 text-[11px] font-mono
+                            transition-colors whitespace-nowrap ${
+                  expl
+                    ? isOpen
+                      ? "text-amber-400 bg-zinc-800/50 cursor-pointer"
+                      : "text-amber-400/70 hover:text-amber-400 hover:bg-zinc-800/40 cursor-pointer"
+                    : "text-zinc-700 cursor-default"
+                }`}
+              >
+                সমাধান
+                {expl
+                  ? <ChevronDown className={`w-3 h-3 ml-0.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                  : <ChevronDown className="w-3 h-3 ml-0.5 opacity-30" />
+                }
+              </button>
             </div>
+
             {/* Collapsible explanation */}
             {expl && isOpen && (
-              <div className="px-3 pb-2.5 pt-1 text-xs text-zinc-400 leading-relaxed
-                              border-t border-zinc-800/60 bg-zinc-950/50">
-                <MathText text={expl} />
+              <div className="px-4 py-3 text-sm text-zinc-300 leading-relaxed bg-zinc-950/60
+                              border-t border-zinc-800/60">
+                <MathText text={preprocessExplanation(expl)} />
               </div>
             )}
           </div>
@@ -150,6 +210,7 @@ export default function ProblemCard({ problem: init, onDelete, number }: {
   const [expanded, setExpanded] = useState(false);
   const [explOpen, setExplOpen] = useState(false);
   const [editing,  setEditing]  = useState(false);
+  const [saveKey,  setSaveKey]  = useState(0);
 
   const cq = isCQ(problem);
 
@@ -159,7 +220,22 @@ export default function ProblemCard({ problem: init, onDelete, number }: {
         <EditModal
           problem={problem}
           onClose={() => setEditing(false)}
-          onSave={updated => setProblem(p => ({ ...p, ...updated }))}
+          onSave={async updated => {
+            // Merge optimistically first for instant UI feedback
+            setProblem(p => ({ ...p, ...updated }));
+            setSaveKey(k => k + 1);
+            // Then re-fetch from DB to get all columns including explanation_a/b/c/d
+            const { data } = await supabase
+              .from("problems")
+              .select(`id, question, option_a, option_b, option_c, option_d,
+                       correct_answer, explanation, explanation_a, explanation_b,
+                       explanation_c, explanation_d, difficulty, is_free, tags,
+                       source, created_at, subject_id, topic_id, subtopic_id,
+                       problem_type, subjects(name), topics(name), subtopics(name)`)
+              .eq("id", updated.id ?? problem.id)
+              .single();
+            if (data) { setProblem(data as any); setSaveKey(k => k + 1); }
+          }}
         />
       )}
 
@@ -240,7 +316,7 @@ export default function ProblemCard({ problem: init, onDelete, number }: {
         {expanded && (
           <div className="border-t border-zinc-800 px-5 py-4 space-y-3">
 
-            {cq ? <CqOptions problem={problem} /> : <McqOptions problem={problem} />}
+            {cq ? <CqOptions key={saveKey} problem={problem} /> : <McqOptions problem={problem} />}
 
             {/* Explanation — only shown globally for MCQ; CQ shows per-subquestion */}
             {!cq && problem.explanation && (
